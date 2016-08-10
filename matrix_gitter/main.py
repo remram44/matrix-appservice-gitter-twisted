@@ -18,6 +18,7 @@ from twisted.web.http_headers import Headers
 from twisted import logger
 from twisted.web.resource import Resource, NoResource
 from twisted.web.server import NOT_DONE_YET, Site
+from urllib import quote
 
 from matrix_gitter.utils import StringProducer
 
@@ -26,7 +27,7 @@ logger.globalLogPublisher.addObserver(
     logger.FileLogObserver(sys.stderr, logger.formatEventAsClassicLogText))
 
 
-HOMESERVER_URL = 'http://10.4.0.1:8441/'
+HOMESERVER_URL = 'http://10.4.0.1:8440/'
 HOMESERVER_TOKEN = 'yOBsbMzpRXQOD+7KF9yTGzlJbgxK2z+Nmq0E082C'
 
 
@@ -79,9 +80,9 @@ class Alias(Resource):
         alias_localpart = alias.split(':', 1)[0][1:]
         d = agent.request(
             'POST',
-            '%s_matrix/client/api/v1/createRoom?access_token=%s' % (
+            '%s_matrix/client/r0/createRoom?access_token=%s' % (
                 HOMESERVER_URL,
-                HOMESERVER_TOKEN),
+                quote(HOMESERVER_TOKEN)),
             Headers({'content-type': ['application/json']}),
             StringProducer(json.dumps({'room_alias_name': alias_localpart})))
         d.addErrback(self._err)
