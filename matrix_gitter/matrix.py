@@ -30,9 +30,9 @@ class BaseMatrixResource(Resource):
             log.info("No access token")
             request.setResponseCode(401)
             return '{"errcode": "twisted.unauthorized"}'
-        elif token != self._api.token_as:
+        elif token != self._api.token_hs:
             log.info("Wrong token: {got!r} != {expected!r}",
-                     got=token, expected=self._api.token_as)
+                     got=token, expected=self._api.token_hs)
             request.setResponseCode(403)
             return '{"errcode": "M_FORBIDDEN"}'
         else:
@@ -85,7 +85,7 @@ class Rooms(BaseMatrixResource):
             'POST',
             '%s_matrix/client/r0/createRoom?access_token=%s' % (
                 self._api.homeserver_url,
-                quote(self._api.token_hs)),
+                quote(self._api.token_as)),
             Headers({'content-type': ['application/json']}),
             StringProducer(json.dumps({'room_alias_name': alias_localpart})))
         d.addErrback(self._err)
@@ -120,7 +120,7 @@ class Users(BaseMatrixResource):
             'POST',
             '%s_matrix/client/r0/register?access_token=%s' % (
                 self._api.homeserver_url,
-                quote(self._api.token_hs)),
+                quote(self._api.token_as)),
             Headers({'content-type': ['application/json']}),
             StringProducer(json.dumps({'type': 'm.login.application_service',
                                        'username': user_localpart})))
@@ -134,10 +134,10 @@ class MatrixAPI(object):
 
     This communicates with a Matrix homeserver as an application service.
     """
-    def __init__(self, port, homeserver_url, token_hs, token_as):
+    def __init__(self, port, homeserver_url, token_as, token_hs):
         self.homeserver_url = homeserver_url
-        self.token_hs = token_hs
         self.token_as = token_as
+        self.token_hs = token_hs
 
         root = Resource()
         root.putChild('transactions', Transaction(self))
