@@ -7,10 +7,10 @@ def main():
     logger.globalLogPublisher.addObserver(
         logger.FileLogObserver(sys.stderr, logger.formatEventAsClassicLogText))
 
-    from matrix_gitter.matrix import MatrixAPI
+    from matrix_gitter.bridge import Bridge
 
-    matrix = MatrixAPI(8445, 'http://10.4.0.1:8440/',
-                       'yOBsbMzpRXQOD+7KF9yTGzlJbgxK2z+Nmq0E082C',
-                       'n/xRrUOvzFWskYrSyeKVUlsvQ5I2/CuRMB8XtMll')
+    config = {}
+    execfile('settings.py', config, config)
+    Bridge(config)
 
     reactor.run()
