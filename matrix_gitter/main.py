@@ -48,9 +48,10 @@ class Transaction(Resource):
         events = json.load(request.content)['events']
         log.info("Got {nb} events", nb=len(events))
         for event in events:
-            log.info(user=event['user_id'], room=event['room_id'])
-            log.info(event_type=event['type'])
-            log.info(content=event['content'])
+            log.info("  {user} on {room}",
+                     user=event['user_id'], room=event['room_id'])
+            log.info("    {type}", type=event['type'])
+            log.info("    {content}", content=event['content'])
         request.responseHeaders.addRawHeader(b"content-type",
                                              b"application/json")
         return '{}'
@@ -133,7 +134,7 @@ class Users(Resource):
 
 def main():
     root = Resource()
-    root.putChild('transaction', Transaction())
+    root.putChild('transactions', Transaction())
     root.putChild('rooms', Rooms())
     root.putChild('users', Users())
     factory = Site(root)
