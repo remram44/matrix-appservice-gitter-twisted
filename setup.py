@@ -17,7 +17,7 @@ setup(name='matrix-gitter-twisted',
           'console_scripts': [
               'matrix_gitter = matrix_gitter.main:main']},
       install_requires=req,
-      description="Twisted-based client for Matrix",
+      description="Matrix-Gitter bridge using Twisted",
       author="Remi Rampin",
       author_email='remirampin@gmail.com',
       maintainer="Remi Rampin",
