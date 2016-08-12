@@ -29,3 +29,24 @@ Deployment guide
 - Write a registration file for this application service
 - Copy ``settings.py.example`` to ``settings.py`` and edit the configuration
 - Run this software
+
+Internals
+---------
+
+The database is created on the first runs. It contains the following tables:
+
+- users: contains informations about a user on either service. It might be a Matrix user that did not authenticate with Gitter yet, a Gitter user that doesn't use Matrix, or an active bridge user. The table contains usernames, Gitter OAuth tokens, a flag indicating if the Matrix user is real, and the ID of the private chat room of the bot with the Matrix user.
+
+- rooms: contains information about bridged rooms. Linked to a Matrix user. Maps a Matrix room ID with a Gitter room ID. The Matrix room may be NULL if the user is only in the room om Gitter.
+
+The bot responds to invite requests. When it joins, if more than one persom is in the chat, it will print a message and leave (and remember not to accept invites for that room in the future). Else, it will set this room as the private chat with that user in the database, leaving the previous one if it was set, and display instructions (with link to auth page).
+
+The auth page is an HTML page allowing a user to auth her Gitter account using OAuth2.
+
+Recognized bot commands:
+
+- ``list``: displays the list of Gitter room the user is in, with an asterix for rooms he has joined on Matrix.
+- ``gjoin <gitter-room>``: join a new room on Gitter
+- ``gpart <gitter-room>``: leave a room on Gitter. Kick you out of the Matrix room if you were on it
+- ``invite <gitter-room>``: if you are not on a Matrix room for that Gitter room, create one, populate it with virtual users and invite you to it
+- ``logout``: throw away your Gitter credentials. Kick you out of all rooms you are in
