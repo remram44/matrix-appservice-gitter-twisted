@@ -1,10 +1,9 @@
-import functools
 import json
 from StringIO import StringIO
-
 from twisted.web.iweb import IBodyProducer
 from twisted.internet import defer
 from twisted.internet.protocol import connectionDone, Protocol
+import urlparse
 from zope.interface import implements
 
 
@@ -53,4 +52,11 @@ def read_json_response(response):
     d = defer.Deferred()
     response.deliverBody(StringReceiver(d))
     d.addCallback(lambda s: (response, json.loads(s)))
+    return d
+
+
+def read_form_response(response):
+    d = defer.Deferred()
+    response.deliverBody(StringReceiver(d))
+    d.addCallback(lambda s: (response, urlparse.parse_qs))
     return d

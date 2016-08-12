@@ -2,5 +2,10 @@ matrix_appservice_port = 8445
 matrix_homeserver_url = 'http://10.4.0.1:8440/'
 matrix_homeserver_domain = 'gitter.remram.fr'
 matrix_botname = '@twisted:gitter.remram.fr'
-matrix_appservice_token = 'yOBsbMzpRXQOD+7KF9yTGzlJbgxK2z+Nmq0E082C'
-matrix_homeserver_token = 'n/xRrUOvzFWskYrSyeKVUlsvQ5I2/CuRMB8XtMll'
+matrix_appservice_token = '42BsbMzpRXQOD+7KF9yTGzlJbgxK2z+Nmq0E082C'
+matrix_homeserver_token = '42xRrUOvzFWskYrSyeKVUlsvQ5I2/CuRMB8XtMll'
+
+gitter_login_port = 80
+gitter_login_url = 'http://gitter.remram.fr/'
+gitter_oauth_key = '42669c292688a9b504625c4e734fbf167a15d180'
+gitter_oauth_secret = '42f75b120a4938ec609fb2c849abb3b64b7e5eaa'
