@@ -216,10 +216,11 @@ class MatrixAPI(object):
                 self.homeserver_url,
                 uri,
                 urllib.urlencode(getargs)),
-            Headers({'content-type': ['application/json']}),
+            Headers({'content-type': ['application/json'],
+                     'accept': ['application/json']}),
             JsonProducer(content) if content is not None else None)
 
-    def access_token_set(self, user):
+    def gitter_info_set(self, user):
         # If we have a private chat with the user, tell him he logged in,
         # else start new private chat
         if user.matrix_private_room is not None:

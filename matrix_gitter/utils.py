@@ -3,6 +3,7 @@ from StringIO import StringIO
 from twisted.web.iweb import IBodyProducer
 from twisted.internet import defer
 from twisted.internet.protocol import connectionDone, Protocol
+import urllib
 import urlparse
 from zope.interface import implements
 
@@ -28,6 +29,11 @@ class StringProducer(object):
 class JsonProducer(StringProducer):
     def __init__(self, body):
         StringProducer.__init__(self, json.dumps(body))
+
+
+class FormProducer(StringProducer):
+    def __init__(self, body):
+        StringProducer.__init__(self, urllib.urlencode(body))
 
 
 class StringReceiver(Protocol):
@@ -58,5 +64,5 @@ def read_json_response(response):
 def read_form_response(response):
     d = defer.Deferred()
     response.deliverBody(StringReceiver(d))
-    d.addCallback(lambda s: (response, urlparse.parse_qs))
+    d.addCallback(lambda s: (response, urlparse.parse_qs(s)))
     return d

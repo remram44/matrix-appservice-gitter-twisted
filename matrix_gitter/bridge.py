@@ -35,6 +35,7 @@ class Bridge(object):
     def __init__(self, config):
         create_db = not os.path.exists('database.sqlite3')
         self.db = sqlite3.connect('database.sqlite3')
+        self.db.isolation_level = None
         self.db.row_factory = sqlite3.Row
 
         if create_db:
@@ -58,6 +59,11 @@ class Bridge(object):
                     matrix_room TEXT NULL,
                     gitter_room TEXT NOT NULL);
                 ''')
+
+        self.secret_key = config['unique_secret_key']
+        if self.secret_key == 'change this before running':
+            raise RuntimeError("Please go over the configuration and set "
+                               "unique_secret_key to a unique secret string")
 
         homeserver_url = config['matrix_homeserver_url']
         if homeserver_url[-1] != '/':
@@ -107,14 +113,14 @@ class Bridge(object):
         else:
             return User.from_row(row)
 
-    def set_gitter_access_token(self, github_user, access_token):
+    def set_gitter_info(self, matrix_user, github_user, access_token):
         self.db.execute(
             '''
-            UPDATE users SET gitter_access_token=?
-            WHERE github_username=?;
+            UPDATE users SET github_username=?, gitter_access_token=?
+            WHERE matrix_username=?;
             ''',
-            (github_user, access_token))
-        self.matrix.access_token_set(self.get_user(github_user=github_user))
+            (github_user, access_token, matrix_user))
+        self.matrix.gitter_info_set(self.get_user(github_user=github_user))
 
     def set_user_private_matrix_room(self, matrix_user, room):
         self.db.execute(

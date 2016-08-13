@@ -1,3 +1,5 @@
+unique_secret_key = 'change this before running'
+
 matrix_appservice_port = 8445
 matrix_homeserver_url = 'http://10.4.0.1:8440/'
 matrix_homeserver_domain = 'gitter.remram.fr'
