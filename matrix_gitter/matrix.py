@@ -203,7 +203,27 @@ class Transaction(BaseMatrixResource):
             d.addBoth(self._room_left, user_obj, rest)
             return
         elif first_word == 'invite':
-            self.api.private_message(user_obj, "TODO: invite", False)
+            room_obj = self.api.get_gitter_room(user_obj.matrix_username, rest)
+            if room_obj is not None:
+                d = self.api.matrix_request(
+                    'POST',
+                    '_matrix/client/r0/rooms/%s/invite',
+                    {'user_id': user_obj.matrix_username},
+                    room_obj.matrix_room)
+                d.addErrback(Errback(
+                    log, "Error inviting {user} to bridged room {matrix}",
+                    user=user_obj.matrix_username,
+                    matrix=room_obj.matrix_room))
+                self.api.private_message(
+                    user_obj,
+                    "You are already on room {gitter}: {matrix}".format(
+                        gitter=room_obj.gitter_room_name,
+                        matrix=room_obj.matrix_room),
+                    False)
+            else:
+                # Check if the room is available
+                d = self.api.peek_gitter_room(user_obj, rest)
+                d.addBoth(self._new_room, user_obj, rest)
             return
         elif first_word == 'logout':
             for room_obj in self.api.get_all_rooms(user_obj.matrix_username):
@@ -252,6 +272,33 @@ class Transaction(BaseMatrixResource):
         else:
             msg = "Successfully left room {room}"
         self.api.private_message(user_obj, msg.format(room=room), False)
+
+    def _new_room(self, result, user_obj, gitter_room):
+        if isinstance(result, Failure):
+            self.api.private_message(
+                user_obj,
+                "Can't access room {room}".format(room=gitter_room),
+                False)
+            return
+
+        d = self.matrix_request(
+            'POST',
+            '_matrix/client/r0/createRoom',
+            {'preset': 'private_chat'})
+        d.addCallback(read_json_response)
+        d.addCallback(self._bridge_rooms, user_obj, result)
+        d.addErrback(Errback(log, "Couldn't create a room"))
+
+    def _bridge_rooms(self, (response, content), user_obj, gitter_room_obj):
+        matrix_room = content['room_id']
+
+        self.api.bridge_rooms(user_obj, matrix_room, gitter_room_obj)
+
+        d = self.api.matrix_request(
+            'POST',
+            '_matrix/client/r0/rooms/%s/invite',
+            {'user_id': user_obj.matrix_username},
+            matrix_room)
 
     def private_room_members(self, (response, content), room):
         members = [m['state_key']
@@ -479,3 +526,6 @@ class MatrixAPI(object):
 
     def leave_gitter_room(self, user_obj, gitter_room_name):
         return self.bridge.leave_gitter_room(user_obj, gitter_room_name)
+
+    def bridge_rooms(self, user_obj, matrix_room, gitter_room_obj):
+        self.bridge.bridge_rooms(user_obj, matrix_room, gitter_room_obj)

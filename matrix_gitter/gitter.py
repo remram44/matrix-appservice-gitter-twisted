@@ -57,6 +57,22 @@ class GitterAPI(object):
             Headers(headers),
             JsonProducer(content) if content is not None else None)
 
+    def gitter_stream(self, method, uri, *args, **kwargs):
+        if 'access_token' in kwargs:
+            access_token = kwargs.pop('access_token')
+        else:
+            access_token = kwargs.pop('user').gitter_access_token
+        if args:
+            uri = uri % tuple(urllib.quote(a) for a in args)
+        if isinstance(uri, unicode):
+            uri = uri.encode('ascii')
+        headers = {'accept': ['application/json'],
+                   'authorization': ['Bearer %s' % access_token]}
+        return agent.request(
+            method,
+            'https://stream.gitter.im/%s' % uri,
+            Headers(headers))
+
     def set_access_token(self, matrix_user, access_token):
         log.info("Getting GitHub username for Matrix user {matrix}",
                  matrix=matrix_user)

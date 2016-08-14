@@ -38,7 +38,6 @@ class User(object):
 class Room(Protocol):
     def __init__(self, bridge, user, matrix_room,
                  gitter_room_name, gitter_room_id):
-        Protocol.__init__(self)
         self.bridge = bridge
         self.user = user
         self.matrix_room = matrix_room
@@ -53,10 +52,9 @@ class Room(Protocol):
     def start_stream(self):
         self.content = []
         # Start stream
-        d = self.bridge.gitter.gitter_request(
+        d = self.bridge.gitter.gitter_stream(
             'GET',
             'v1/rooms/%s/chatMessages',
-            None,
             self.gitter_room_id,
             user=self.user)
         d.addCallback(self._receive_stream)
@@ -75,13 +73,13 @@ class Room(Protocol):
         if self.destroyed:
             return
         log.info("Data received on stream for user {user} room {room} "
-                 "({bytes} bytes)",
+                 "({bytes} bytes):\n{data!r}",
                  user=self.user.github_username, room=self.gitter_room_name,
-                 bytes=len(data))
-        if '\r' in data:
-            data = data.split('\r', 1)
+                 bytes=len(data), data=data)
+        if '\n' in data:
+            data = data.split('\n', 1)
             content, self.content = self.content + [data[0]], [data[1]]
-            document = ''.join(chain(content, data))
+            document = ''.join(content)
             try:
                 json.loads(document)
             except Exception:
@@ -103,7 +101,7 @@ class Room(Protocol):
                  user=self.user.github_username, room=self.gitter_room_name)
         self.stream_response = None
         if not self.destroyed:
-            self.start_stream()
+            reactor.callLater(30, self.start_stream)
 
     def to_gitter(self, msg):
         pass  # TODO: forward to Gitter
@@ -199,19 +197,20 @@ class Bridge(object):
             ''')
         log.info("Initializing rooms...")
         for row in cur:
-            user = User.from_row(row)
+            user_obj = User.from_row(row)
             matrix_room = row['matrix_room']
             gitter_room_name = row['gitter_room_name']
             gitter_room_id = row['gitter_room_id']
-            room = Room(self, user, matrix_room,
+            room = Room(self, user_obj, matrix_room,
                         gitter_room_name, gitter_room_id)
             self.rooms_matrix[matrix_room] = room
             self.rooms_gitter_name.setdefault(
-                user.matrix_username, {})[
+                user_obj.matrix_username, {})[
                 gitter_room_name] = room
             log.info("{matrix} {gitter} {user_m} {user_g}",
                      matrix=matrix_room, gitter=gitter_room_name,
-                     user_m=user.matrix_username, user_g=user.github_username)
+                     user_m=user_obj.matrix_username,
+                     user_g=user_obj.github_username)
 
     @property
     def bot_fullname(self):
@@ -228,6 +227,29 @@ class Bridge(object):
         self.rooms_gitter_name.get(
             room.user.matrix_username, {}).pop(
             room.gitter_room_name, None)
+
+    def bridge_rooms(self, user_obj, matrix_room, gitter_room_obj):
+        gitter_room_name = gitter_room_obj['url'][1:]
+        gitter_room_id = gitter_room_obj['id']
+        self.db.execute(
+            '''
+            INSERT INTO rooms(user, matrix_room,
+                gitter_room_name, gitter_room_id)
+            VALUES(?, ?, ?, ?);
+            ''',
+            (user_obj.matrix_username, matrix_room,
+             gitter_room_name, gitter_room_id))
+        room = Room(self, user_obj, matrix_room,
+                    gitter_room_name, gitter_room_id)
+        self.rooms_matrix[matrix_room] = room
+        self.rooms_gitter_name.setdefault(
+            user_obj.matrix_username, {})[
+            gitter_room_name] = room
+        log.info("Create room:")
+        log.info("{matrix} {gitter} {user_m} {user_g}",
+                 matrix=matrix_room, gitter=gitter_room_name,
+                 user_m=user_obj.matrix_username,
+                 user_g=user_obj.github_username)
 
     def get_user(self, matrix_user=None, github_user=None):
         if matrix_user is not None and github_user is None:
