@@ -206,8 +206,9 @@ class Bridge(object):
             room = Room(self, user, matrix_room,
                         gitter_room_name, gitter_room_id)
             self.rooms_matrix[matrix_room] = room
-            self.rooms_gitter_name[
-                (user.matrix_username, gitter_room_name)] = room
+            self.rooms_gitter_name.setdefault(
+                user.matrix_username, {})[
+                gitter_room_name] = room
             log.info("{matrix} {gitter} {user_m} {user_g}",
                      matrix=matrix_room, gitter=gitter_room_name,
                      user_m=user.matrix_username, user_g=user.github_username)
@@ -224,9 +225,9 @@ class Bridge(object):
             ''',
             (room.user.matrix_username, room.matrix_room))
         self.rooms_matrix.pop(room.matrix_room, None)
-        self.rooms_gitter_name.pop(
-            (room.user.matrix_username, room.gitter_room_name),
-            None)
+        self.rooms_gitter_name.get(
+            room.user.matrix_username, {}).pop(
+            room.gitter_room_name, None)
 
     def get_user(self, matrix_user=None, github_user=None):
         if matrix_user is not None and github_user is None:
@@ -258,8 +259,9 @@ class Bridge(object):
             return self.rooms_matrix.get(matrix_room)
         elif (gitter_room_name is not None and matrix_username is not None and
                 matrix_room is None):
-            return self.rooms_gitter_name.get((matrix_username,
-                                               gitter_room_name))
+            return self.rooms_gitter_name.get(
+                matrix_username, {}).get(
+                gitter_room_name)
         else:
             raise TypeError
 
