@@ -176,7 +176,7 @@ class Transaction(BaseMatrixResource):
             d.addBoth(self._room_joined, user_obj, rest)
             return
         elif first_word == 'gpart':
-            room_obj = self.api.get_room(gitter_room=rest)
+            room_obj = self.api.get_gitter_room(user_obj.matrix_username, rest)
             if room_obj is not None:
                 d = self.matrix_request(
                     'POST',
@@ -420,8 +420,11 @@ class MatrixAPI(object):
     def forget_private_room(self, room):
         self.bridge.forget_private_matrix_room(room)
 
-    def get_room(self, matrix_room=None, gitter_room=None):
-        return self.bridge.get_room(matrix_room=matrix_room,
+    def get_room(self, room=None):
+        return self.bridge.get_room(matrix_room=room)
+
+    def get_gitter_room(self, matrix_username, gitter_room):
+        return self.bridge.get_room(matrix_username=matrix_username,
                                     gitter_room_name=gitter_room)
 
     def get_user(self, user):
