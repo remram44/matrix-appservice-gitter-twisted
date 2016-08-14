@@ -180,7 +180,9 @@ class Transaction(BaseMatrixResource):
                     user=user_obj.github_username))
                 return
         elif first_word == 'gjoin':
-            d = self.api.join_gitter_room(user_obj, rest)
+            d = self.api.peek_gitter_room(user_obj, rest)
+            d.addCallback(lambda room: self.api.join_gitter_room(user_obj,
+                                                                 room['id']))
             d.addBoth(self._room_joined, user_obj, rest)
             return
         elif first_word == 'gpart':
@@ -469,8 +471,11 @@ class MatrixAPI(object):
     def get_gitter_user_rooms(self, user_obj):
         return self.bridge.get_gitter_user_rooms(user_obj)
 
-    def join_gitter_room(self, user_obj, gitter_room):
-        return self.bridge.join_gitter_room(user_obj, gitter_room)
+    def peek_gitter_room(self, user_obj, gitter_room_name):
+        return self.bridge.peek_gitter_room(user_obj, gitter_room_name)
 
-    def leave_gitter_room(self, user_obj, gitter_room):
-        return self.bridge.leave_gitter_room(user_obj, gitter_room)
+    def join_gitter_room(self, user_obj, gitter_room_id):
+        return self.bridge.join_gitter_room(user_obj, gitter_room_id)
+
+    def leave_gitter_room(self, user_obj, gitter_room_name):
+        return self.bridge.leave_gitter_room(user_obj, gitter_room_name)

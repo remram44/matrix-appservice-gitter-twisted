@@ -106,9 +106,13 @@ class GitterAPI(object):
             if room['url'][1:] == gitter_room:
                 return room
 
-    def join_room(self, user_obj, gitter_room):
-        d = self.gitter_request('POST', 'v1/rooms', {'uri': gitter_room},
-                                user=user_obj)
+    def join_room(self, user_obj, gitter_room_id):
+        d = self.gitter_request(
+            'POST',
+            'v1/user/%s/rooms',
+            {'id': gitter_room_id},
+            user_obj.gitter_id,
+            user=user_obj)
         d.addCallback(assert_http_200)
         d.addCallback(read_json_response)
         d.addCallback(lambda (r, c): c)
@@ -116,7 +120,6 @@ class GitterAPI(object):
 
     def leave_room(self, user_obj, gitter_room):
         d = self.get_room(gitter_room, user=user_obj)
-        d.addCallback(assert_http_200)
         d.addCallback(self._leave_room, user_obj)
         return d
 

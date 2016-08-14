@@ -357,8 +357,11 @@ class Bridge(object):
         return [(gitter_id, gitter_name, user_rooms.get(gitter_id))
                 for gitter_id, gitter_name in rooms]
 
-    def join_gitter_room(self, user_obj, gitter_room):
-        return self.gitter.join_room(user_obj, gitter_room)
+    def peek_gitter_room(self, user_obj, gitter_room_name):
+        return self.gitter.get_room(gitter_room_name, user=user_obj)
+
+    def join_gitter_room(self, user_obj, gitter_room_id):
+        return self.gitter.join_room(user_obj, gitter_room_id)
 
     def leave_gitter_room(self, user_obj, gitter_room):
         return self.gitter.leave_room(user_obj, gitter_room)
