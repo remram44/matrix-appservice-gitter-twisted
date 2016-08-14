@@ -9,7 +9,8 @@ from twisted.web.resource import Resource, NoResource
 from twisted.web.server import NOT_DONE_YET, Site
 import urllib
 
-from matrix_gitter.utils import Errback, JsonProducer, read_json_response
+from matrix_gitter.utils import assert_http_200, Errback, JsonProducer, \
+    read_json_response
 
 
 log = logger.Logger()
@@ -235,24 +236,22 @@ class Transaction(BaseMatrixResource):
         self.api.private_message(user_obj, "\n".join(msg), False)
 
     def _room_joined(self, result, user_obj, room):
-        if not isinstance(result, Failure) and result.code == 200:
-            msg = "Successfully joined room {room}"
-        else:
+        if isinstance(result, Failure):
             log.failure("Failed to join room {room}", result, room=room)
             msg = "Couldn't join room {room}"
+        else:
+            msg = "Successfully joined room {room}"
         self.api.private_message(user_obj, msg.format(room=room), False)
 
     def _room_left(self, result, user_obj, room):
-        if not isinstance(result, Failure) and result.code == 200:
-            msg = "Successfully left room {room}"
-        else:
+        if isinstance(result, Failure):
             log.failure("Failed to leave room {room}", result, room=room)
             msg = "Couldn't leave room {room}"
+        else:
+            msg = "Successfully left room {room}"
         self.api.private_message(user_obj, msg.format(room=room), False)
 
     def private_room_members(self, (response, content), room):
-        if response.code != 200:
-            return
         members = [m['state_key']
                    for m in content['chunk']
                    if m['content']['membership'] == 'join']
@@ -368,7 +367,7 @@ class MatrixAPI(object):
             uri = uri.encode('ascii')
         getargs = {'access_token': self.token_as}
         getargs.update(kwargs)
-        return agent.request(
+        d = agent.request(
             method,
             '%s%s?%s' % (
                 self.homeserver_url,
@@ -377,6 +376,9 @@ class MatrixAPI(object):
             Headers({'content-type': ['application/json'],
                      'accept': ['application/json']}),
             JsonProducer(content) if content is not None else None)
+        if kwargs.pop('assert200', True):
+            d.addCallback(assert_http_200)
+        return d
 
     def private_message(self, user_obj, msg, invite):
         if user_obj.matrix_private_room is not None:

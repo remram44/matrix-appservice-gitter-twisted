@@ -75,3 +75,9 @@ def read_form_response(response):
     response.deliverBody(StringReceiver(response, d))
     d.addCallback(lambda s: (response, urlparse.parse_qs(s)))
     return d
+
+
+def assert_http_200(response):
+    if response.code != 200:
+        raise IOError("HTTP %d" % response.code)
+    return response

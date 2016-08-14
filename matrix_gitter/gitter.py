@@ -2,13 +2,13 @@ import hashlib
 import hmac
 from twisted import logger
 from twisted.internet import reactor
-from twisted.python.failure import Failure
 from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
 import urllib
 
 from matrix_gitter.gitter_oauth import setup_gitter_oauth
-from matrix_gitter.utils import Errback, JsonProducer, read_json_response
+from matrix_gitter.utils import assert_http_200, Errback, JsonProducer, \
+    read_json_response
 
 
 log = logger.Logger()
@@ -62,13 +62,14 @@ class GitterAPI(object):
                  matrix=matrix_user)
         d = self.gitter_request('GET', 'v1/user', None,
                                 access_token=access_token)
+        d.addCallback(assert_http_200)
         d.addCallback(read_json_response)
         d.addCallback(self._set_user_access_token, matrix_user, access_token)
         d.addErrback(Errback(log,
                              "Error getting username for Matrix user {matrix}",
                              matrix=matrix_user))
 
-    def _set_user_access_token(self, (request, content),
+    def _set_user_access_token(self, (response, content),
                                matrix_user, access_token):
         github_user = content[0]['username']
         gitter_id = content[0]['id']
@@ -80,6 +81,7 @@ class GitterAPI(object):
     def get_gitter_user_rooms(self, user_obj):
         d = self.gitter_request('GET', 'v1/rooms', None,
                                    user=user_obj)
+        d.addCallback(assert_http_200)
         d.addCallback(read_json_response)
         d.addCallback(self._read_gitter_rooms)
         return d
@@ -94,23 +96,27 @@ class GitterAPI(object):
             'v1/rooms?q=%s' % urllib.quote(gitter_room),
             None,
             **kwargs)
+        d.addCallback(assert_http_200)
         d.addCallback(read_json_response)
         d.addCallback(self._get_room, gitter_room)
         return d
 
     def _get_room(self, (response, content), gitter_room):
-        if response.code == 200:
-            for room in content['results']:
-                if room['url'][1:] == gitter_room:
-                    return room
-        return Failure(KeyError("No room %s found" % gitter_room))
+        for room in content['results']:
+            if room['url'][1:] == gitter_room:
+                return room
 
     def join_room(self, user_obj, gitter_room):
-        return self.gitter_request('POST', 'v1/rooms', {'uri': gitter_room},
-                                   user=user_obj)
+        d = self.gitter_request('POST', 'v1/rooms', {'uri': gitter_room},
+                                user=user_obj)
+        d.addCallback(assert_http_200)
+        d.addCallback(read_json_response)
+        d.addCallback(lambda (r, c): c)
+        return d
 
     def leave_room(self, user_obj, gitter_room):
         d = self.get_room(gitter_room, user=user_obj)
+        d.addCallback(assert_http_200)
         d.addCallback(self._leave_room, user_obj)
         return d
 
