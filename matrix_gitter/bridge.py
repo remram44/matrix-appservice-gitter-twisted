@@ -134,7 +134,7 @@ class Bridge(object):
                 '''
                 CREATE TABLE rooms(
                     user TEXT NOT NULL,
-                    matrix_room TEXT NULL,
+                    matrix_room TEXT NOT NULL,
                     gitter_room_name TEXT NOT NULL,
                     gitter_room_id TEXT NOT NULL);
                 ''')

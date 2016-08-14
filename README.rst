@@ -35,9 +35,9 @@ Internals
 
 The database is created on the first runs. It contains the following tables:
 
-- users: contains informations about a user on either service. It might be a Matrix user that did not authenticate with Gitter yet, a Gitter user that doesn't use Matrix, or an active bridge user. The table contains usernames, Gitter OAuth tokens, a flag indicating if the Matrix user is real, and the ID of the private chat room of the bot with the Matrix user.
+- users: contains informations about a user on either service. It might be a Matrix user that did not authenticate with Gitter yet, or an active bridge user. The table contains usernames, Gitter OAuth tokens, and the ID of the private chat room of the bot with the Matrix user.
 
-- rooms: contains information about bridged rooms. Linked to a Matrix user. Maps a Matrix room ID with a Gitter room ID. The Matrix room may be NULL if the user is only in the room on Gitter.
+- rooms: contains information about bridged rooms. Linked to a Matrix user. Maps a Matrix room ID with a Gitter room name and ID.
 
 The bot responds to invite requests. When it joins, if more than one persom is in the chat, it will print a message and leave (and remember not to accept invites for that room in the future). Else, it will set this room as the private chat with that user in the database, leaving the previous one if it was set, and display instructions (with link to auth page).
 
