@@ -30,6 +30,10 @@ class GitterAPI(object):
 
         setup_gitter_oauth(self, port)
 
+    @property
+    def bot_fullname(self):
+        return self.bridge.bot_fullname
+
     def secret_hmac(self, msg):
         return hmac.new(self.bridge.secret_key, msg, hashlib.sha1).hexdigest()
 

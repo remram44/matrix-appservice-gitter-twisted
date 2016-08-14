@@ -14,6 +14,37 @@ log = logger.Logger()
 agent = Agent(reactor)
 
 
+HTML_TEMPLATE = '''\
+<html>
+  <head><title>{title}</title></head>
+  <body>
+{content}
+  </body>
+</html>
+'''
+
+
+class Index(Resource):
+    def __init__(self, botname):
+        self.botname = botname
+        Resource.__init__(self)
+
+    def render_GET(self, request):
+        request.setHeader('content-type', 'text/html')
+        return HTML_TEMPLATE.format(
+            title="Gitter-Matrix bridge",
+            content="<h1>Gitter-Matrix bridge</h1>\n"
+                    "<p>This server provides a bridge for users of the <a "
+                    "href=\"https://matrix.org/\">Matrix chat network</a>, to "
+                    "the <a href=\"https://gitter.im/\">Gitter system</a>, "
+                    "allowing them to join Gitter rooms without using their "
+                    "client.</p>\n"
+                    "<h2>How to use this</h2>\n"
+                    "<p>Start a private chat with <a href=\""
+                    "https://matrix.to/#/%s\"><tt>%s</tt></a>.</p>\n" %
+                    (urllib.quote(self.botname), self.botname))
+
+
 class Redirect(Resource):
     isLeaf = True
 
@@ -31,7 +62,11 @@ class Redirect(Resource):
         if self.api.secret_hmac(user) != secret:
             log.info("Secret mismatch: {got!r} != {expected!r}",
                      got=secret, expected=self.api.secret_hmac(user))
-            raise ValueError("Invalid state")
+            request.setResponseCode(404)
+            request.setHeader('content-type', 'text/html')
+            return HTML_TEMPLATE.format(
+                title="Invalid link",
+                content="<p>The link you followed is invalid.</p>\n")
         log.info("User {user} starting Gitter authorization", user=user)
         getargs = {
             'client_id': self.api.oauth_key,
@@ -84,8 +119,11 @@ class Callback(Resource):
         if token_type.lower() != 'bearer':
             raise ValueError("Got invalid token type %r" % token_type)
         self.api.set_access_token(user, access_token)
-        request.setHeader('content-type', 'text/plain')
-        request.write("Success!\n")
+        request.setHeader('content-type', 'text/html')
+        request.write(HTML_TEMPLATE.format(
+            title="Authentication successful",
+            content="<p>You have successfully authenticated. You can go back "
+                    "to your Matrix client and start chatting!</p>\n"))
         request.finish()
 
     def error(self, err, request):
@@ -97,7 +135,7 @@ class Callback(Resource):
 
 
 def setup_gitter_oauth(api, port):
-    root = Resource()
+    root = Index(api.bot_fullname)
     root.putChild('auth_gitter', Redirect(api))
     root.putChild('callback', Callback(api))
     site = Site(root)

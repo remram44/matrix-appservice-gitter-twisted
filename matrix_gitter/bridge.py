@@ -89,6 +89,10 @@ class Bridge(object):
             config['gitter_oauth_key'],
             config['gitter_oauth_secret'])
 
+    @property
+    def bot_fullname(self):
+        return self.matrix.bot_fullname
+
     def get_user(self, matrix_user=None, github_user=None):
         if matrix_user is not None and github_user is None:
             cur = self.db.execute(
