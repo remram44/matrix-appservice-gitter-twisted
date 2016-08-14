@@ -176,7 +176,21 @@ class Transaction(BaseMatrixResource):
             d.addBoth(self._room_joined, user_obj, rest)
             return
         elif first_word == 'gpart':
-            self.api.private_message(user_obj, "TODO: gpart", False)
+            room_obj = self.api.get_room(gitter_room=rest)
+            if room_obj is not None:
+                d = self.matrix_request(
+                    'POST',
+                    '_matrix/client/r0/rooms/%s/leave',
+                    {},
+                    room_obj.matrix_room)
+                d.addCallback(lambda r: self.matrix_request(
+                    'POST',
+                    '_matrix/client/r0/rooms/%s/forget',
+                    {},
+                    room_obj.matrix_room))
+                room_obj.destroy()
+            d = self.api.leave_gitter_room(user_obj, rest)
+            d.addBoth(self._room_left, user_obj, rest)
             return
         elif first_word == 'invite':
             self.api.private_message(user_obj, "TODO: invite", False)
@@ -202,7 +216,16 @@ class Transaction(BaseMatrixResource):
         if not isinstance(result, Failure) and result.code == 200:
             msg = "Successfully joined room {room}"
         else:
+            log.failure("Failed to join room {room}", result, room=room)
             msg = "Couldn't join room {room}"
+        self.api.private_message(user_obj, msg.format(room=room), False)
+
+    def _room_left(self, result, user_obj, room):
+        if not isinstance(result, Failure) and result.code == 200:
+            msg = "Successfully left room {room}"
+        else:
+            log.failure("Failed to leave room {room}", result, room=room)
+            msg = "Couldn't leave room {room}"
         self.api.private_message(user_obj, msg.format(room=room), False)
 
     def private_room_members(self, (response, content), room):
@@ -397,8 +420,9 @@ class MatrixAPI(object):
     def forget_private_room(self, room):
         self.bridge.forget_private_matrix_room(room)
 
-    def get_room(self, room):
-        self.bridge.get_matrix_room(room)
+    def get_room(self, matrix_room=None, gitter_room=None):
+        return self.bridge.get_room(matrix_room=matrix_room,
+                                    gitter_room_name=gitter_room)
 
     def get_user(self, user):
         user_obj = self.bridge.get_user(matrix_user=user)
@@ -414,3 +438,6 @@ class MatrixAPI(object):
 
     def join_gitter_room(self, user_obj, gitter_room):
         return self.bridge.join_gitter_room(user_obj, gitter_room)
+
+    def leave_gitter_room(self, user_obj, gitter_room):
+        return self.bridge.leave_gitter_room(user_obj, gitter_room)

@@ -100,6 +100,9 @@ class Room(Protocol):
     def to_gitter(self, msg):
         pass  # TODO: forward to Gitter
 
+    def destroy(self):
+        pass  # TODO: stop connection, update dicts, update database
+
 
 class Bridge(object):
     """Main application object.
@@ -111,7 +114,8 @@ class Bridge(object):
     We also use a database to keep information about users and rooms.
     """
     def __init__(self, config):
-        self.rooms = {}
+        self.rooms_matrix = {}
+        self.rooms_gitter_name = {}
 
         create_db = not os.path.exists('database.sqlite3')
         self.db = sqlite3.connect('database.sqlite3')
@@ -186,8 +190,10 @@ class Bridge(object):
             matrix_room = row['matrix_room']
             gitter_room_name = row['gitter_room_name']
             gitter_room_id = row['gitter_room_id']
-            self.rooms[matrix_room] = Room(self, user, matrix_room,
-                                           gitter_room_name, gitter_room_id)
+            room = Room(self, user, matrix_room,
+                        gitter_room_name, gitter_room_id)
+            self.rooms_matrix[matrix_room] = room
+            self.rooms_gitter_name[gitter_room_name] = room
             log.info("{matrix} {gitter} {user_m} {user_g}",
                      matrix=matrix_room, gitter=gitter_room_name,
                      user_m=user.matrix_username, user_g=user.github_username)
@@ -219,6 +225,14 @@ class Bridge(object):
             return None
         else:
             return User.from_row(row)
+
+    def get_room(self, matrix_room=None, gitter_room_name=None):
+        if matrix_room is not None and gitter_room_name is None:
+            return self.rooms_matrix.get(matrix_room)
+        elif gitter_room_name is not None and matrix_room is None:
+            return self.rooms_gitter_name.get(gitter_room_name)
+        else:
+            raise TypeError
 
     def set_gitter_info(self, matrix_user, github_user, gitter_id,
                         access_token):
@@ -264,9 +278,6 @@ class Bridge(object):
             ''',
             (room,))
 
-    def get_matrix_room(self, matrix_room):
-        return self.rooms.get(matrix_room)
-
     def gitter_auth_link(self, matrix_user):
         return self.gitter.auth_link(matrix_user)
 
@@ -289,10 +300,10 @@ class Bridge(object):
         user_rooms = dict(
             (row['gitter_room_id'], row['matrix_room'])
             for row in iter(self.db.execute(
-            '''
-            SELECT matrix_room, gitter_room_id FROM rooms
-            WHERE user = ?;
-            ''',
+                '''
+                SELECT matrix_room, gitter_room_id FROM rooms
+                WHERE user = ?;
+                ''',
             (user_obj.matrix_username,))))
 
         return [(gitter_id, gitter_name, user_rooms.get(gitter_id))
@@ -300,3 +311,6 @@ class Bridge(object):
 
     def join_gitter_room(self, user_obj, gitter_room):
         return self.gitter.join_room(user_obj, gitter_room)
+
+    def leave_gitter_room(self, user_obj, gitter_room):
+        return self.gitter.leave_room(user_obj, gitter_room)

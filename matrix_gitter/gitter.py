@@ -2,6 +2,7 @@ import hashlib
 import hmac
 from twisted import logger
 from twisted.internet import reactor
+from twisted.python.failure import Failure
 from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
 import urllib
@@ -87,9 +88,41 @@ class GitterAPI(object):
         return [(room['id'], room['url'][1:])
                 for room in content]
 
+    def get_room(self, gitter_room, **kwargs):
+        d = self.gitter_request(
+            'GET',
+            'v1/rooms?q=%s' % urllib.quote(gitter_room),
+            None,
+            **kwargs)
+        d.addCallback(read_json_response)
+        d.addCallback(self._get_room, gitter_room)
+        return d
+
+    def _get_room(self, (response, content), gitter_room):
+        if response.code == 200:
+            for room in content['results']:
+                if room['url'][1:] == gitter_room:
+                    return room
+        return Failure(KeyError("No room %s found" % gitter_room))
+
     def join_room(self, user_obj, gitter_room):
         return self.gitter_request('POST', 'v1/rooms', {'uri': gitter_room},
                                    user=user_obj)
+
+    def leave_room(self, user_obj, gitter_room):
+        d = self.get_room(gitter_room, user=user_obj)
+        d.addCallback(self._leave_room, user_obj)
+        return d
+
+    def _leave_room(self, room, user_obj):
+        log.info("Resolved {name} into {id}, leaving...",
+                 name=room['url'][1:], id=room['id'])
+        user_id = user_obj.gitter_id
+        return self.gitter_request(
+            'DELETE',
+            'v1/rooms/%s/users/%s' % (room['id'], user_id),
+            None,
+            user=user_obj)
 
     def auth_link(self, matrix_user):
         state = '%s|%s' % (matrix_user, self.secret_hmac(matrix_user))
