@@ -313,6 +313,11 @@ class Bridge(object):
         return self.gitter.auth_link(matrix_user)
 
     def create_user(self, matrix_user):
+        try:
+            raise RuntimeError("CREATING USER FOR BOT")
+        except RuntimeError:
+            log.failure("CREATING USER FOR BOT",
+                        Failure(*sys.exc_info()))
         self.db.execute(
             '''
             INSERT OR IGNORE INTO users(matrix_username)

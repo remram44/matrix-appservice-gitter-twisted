@@ -118,7 +118,7 @@ class Transaction(BaseMatrixResource):
                     log.info("User {user} left room {room}, destroying",
                              user=user, room=room)
                     room_obj.destroy()
-                else:
+                elif user != self.api.bot_fullname:
                     # It is a user's private room
                     user_obj = self.api.get_user(user)
                     if (user_obj is not None and
@@ -141,17 +141,24 @@ class Transaction(BaseMatrixResource):
                                              room=room))
             elif (event['type'] == 'm.room.message' and
                     event['content'].get('msgtype') == 'm.text'):
-                room_obj = self.api.get_room(room)
-                msg = event['content']['body']
+                if user != self.api.bot_fullname:
+                    room_obj = self.api.get_room(room)
+                    msg = event['content']['body']
 
-                # If it's a linked room: forward
-                if room_obj is not None:
-                    room_obj.to_gitter(msg)
-                else:
-                    user_obj = self.api.get_user(user)
-                    if (user_obj is not None and
-                            room == user_obj.matrix_private_room):
-                        self.command(user_obj, msg)
+                    # If it's a linked room: forward
+                    if room_obj is not None:
+                        room_obj.to_gitter(msg)
+                    else:
+                        user_obj = self.api.get_user(user)
+                        if (user_obj is not None and
+                                room == user_obj.matrix_private_room):
+                            if user_obj.gitter_access_token is not None:
+                                self.command(user_obj, msg)
+                            else:
+                                self.api.private_message(
+                                    user_obj,
+                                    "You are not logged in.",
+                                    False)
 
         return '{}'
 
