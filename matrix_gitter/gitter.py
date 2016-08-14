@@ -46,11 +46,14 @@ class GitterAPI(object):
             uri = uri % tuple(urllib.quote(a) for a in args)
         if isinstance(uri, unicode):
             uri = uri.encode('ascii')
+        headers = {'accept': ['application/json'],
+                   'authorization': ['Bearer %s' % access_token]}
+        if content is not None:
+            headers['content-type'] = ['application/json']
         return agent.request(
             method,
             'https://api.gitter.im/%s' % uri,
-            Headers({'accept': ['application/json'],
-                     'authorization': ['Bearer %s' % access_token]}),
+            Headers(headers),
             JsonProducer(content) if content is not None else None)
 
     def set_access_token(self, matrix_user, access_token):
@@ -81,6 +84,10 @@ class GitterAPI(object):
     def _read_gitter_rooms(self, (response, content)):
         return [(room['id'], room['url'][1:])
                 for room in content]
+
+    def join_room(self, user_obj, gitter_room):
+        return self.gitter_request('POST', 'v1/rooms', {'uri': gitter_room},
+                                   user=user_obj)
 
     def auth_link(self, matrix_user):
         state = '%s|%s' % (matrix_user, self.secret_hmac(matrix_user))

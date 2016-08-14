@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 from twisted.internet import reactor
+from twisted.python.failure import Failure
 from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
 from twisted import logger
@@ -171,7 +172,8 @@ class Transaction(BaseMatrixResource):
                     user=user_obj.github_username))
                 return
         elif first_word == 'gjoin':
-            self.api.private_message(user_obj, "TODO: gjoin", False)
+            d = self.api.join_gitter_room(user_obj, rest)
+            d.addBoth(self._room_joined, user_obj, rest)
             return
         elif first_word == 'gpart':
             self.api.private_message(user_obj, "TODO: gpart", False)
@@ -190,10 +192,18 @@ class Transaction(BaseMatrixResource):
                  user=user_obj.matrix_username, nb=len(rooms))
         msg = ["Rooms you are currently in on Gitter (* indicates you are in "
                "that room from Matrix as well):"]
-        for gitter_id, gitter_name, matrix_name in rooms:
+        for gitter_id, gitter_name, matrix_name in sorted(rooms,
+                                                          key=lambda r: r[1]):
             msg.append(" - %s%s" % (gitter_name,
                                     " *" if matrix_name is not None else ""))
         self.api.private_message(user_obj, "\n".join(msg), False)
+
+    def _room_joined(self, result, user_obj, room):
+        if not isinstance(result, Failure) and result.code == 200:
+            msg = "Successfully joined room {room}"
+        else:
+            msg = "Couldn't join room {room}"
+        self.api.private_message(user_obj, msg.format(room=room), False)
 
     def private_room_members(self, (response, content), room):
         if response.code != 200:
@@ -401,3 +411,6 @@ class MatrixAPI(object):
 
     def get_gitter_user_rooms(self, user_obj):
         return self.bridge.get_gitter_user_rooms(user_obj)
+
+    def join_gitter_room(self, user_obj, gitter_room):
+        return self.bridge.join_gitter_room(user_obj, gitter_room)
