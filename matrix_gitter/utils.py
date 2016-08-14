@@ -43,7 +43,8 @@ class FormProducer(StringProducer):
 
 
 class StringReceiver(Protocol):
-    def __init__(self, finished, max_size=1024 * 10):
+    def __init__(self, response, finished, max_size=2 * 1024 * 1024):
+        self.response = response
         self.finished = finished
         self.remaining = max_size
         self.content = StringIO()
@@ -52,23 +53,25 @@ class StringReceiver(Protocol):
         if self.remaining:
             if len(bytes) > self.remaining:
                 self.finished.errback(RuntimeError("response is too big"))
+                self.response.close()
                 return
             self.content.write(bytes)
             self.remaining -= len(bytes)
 
     def connectionLost(self, reason=connectionDone):
-        self.finished.callback(self.content.getvalue())
+        if not self.finished.called:
+            self.finished.callback(self.content.getvalue())
 
 
 def read_json_response(response):
     d = defer.Deferred()
-    response.deliverBody(StringReceiver(d))
+    response.deliverBody(StringReceiver(response, d))
     d.addCallback(lambda s: (response, json.loads(s)))
     return d
 
 
 def read_form_response(response):
     d = defer.Deferred()
-    response.deliverBody(StringReceiver(d))
+    response.deliverBody(StringReceiver(response, d))
     d.addCallback(lambda s: (response, urlparse.parse_qs(s)))
     return d
