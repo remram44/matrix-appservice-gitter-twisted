@@ -7,7 +7,7 @@ from twisted.web.http_headers import Headers
 import urllib
 
 from matrix_gitter.gitter_oauth import setup_gitter_oauth
-from matrix_gitter.utils import read_json_response, JsonProducer
+from matrix_gitter.utils import Errback, JsonProducer, read_json_response
 
 
 log = logger.Logger()
@@ -60,6 +60,9 @@ class GitterAPI(object):
                                 access_token=access_token)
         d.addCallback(read_json_response)
         d.addCallback(self._set_user_access_token, matrix_user, access_token)
+        d.addErrback(Errback(log,
+                             "Error getting username for Matrix user {matrix}",
+                             matrix=matrix_user))
 
     def _set_user_access_token(self, (request, content),
                                matrix_user, access_token):

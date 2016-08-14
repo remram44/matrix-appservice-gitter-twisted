@@ -108,7 +108,7 @@ class Callback(Resource):
             FormProducer(postargs))
         d.addCallback(read_json_response)
         d.addCallback(self._authorized, user, request)
-        d.addErrback(self.error, request)
+        d.addErrback(self.error, request, user)
         return NOT_DONE_YET
 
     def _authorized(self, (response, content), user, request):
@@ -126,8 +126,8 @@ class Callback(Resource):
                     "to your Matrix client and start chatting!</p>\n"))
         request.finish()
 
-    def error(self, err, request):
-        log.failure("Error getting access_token", err)
+    def error(self, err, request, user):
+        log.failure("Error getting access_token for user {user}", err, user)
         request.setResponseCode(403)
         request.setHeader('content-type', 'text/plain')
         request.write("Error getting access token :(\n")

@@ -11,6 +11,7 @@ from twisted.web.client import Agent
 
 from matrix_gitter.gitter import GitterAPI
 from matrix_gitter.matrix import MatrixAPI
+from matrix_gitter.utils import Errback
 
 
 log = logger.Logger()
@@ -54,6 +55,10 @@ class Room(Protocol):
             self.gitter_room_id,
             user=self.user)
         d.addCallback(self._receive_stream)
+        d.addErrback(Errback(
+            log,
+            "Error starting Gitter stream for user {user} room {room}",
+            user=self.user.github_username, room=self.gitter_room_name))
 
     def _receive_stream(self, response):
         log.info("Stream started for user {user} room {room}",

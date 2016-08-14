@@ -8,6 +8,12 @@ import urlparse
 from zope.interface import implements
 
 
+def Errback(log, fmt, **kwargs):
+    def errback_func(err):
+        log.failure(fmt, err, **kwargs)
+    return errback_func
+
+
 class StringProducer(object):
     implements(IBodyProducer)
 

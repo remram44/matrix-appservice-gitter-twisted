@@ -8,7 +8,7 @@ from twisted.web.resource import Resource, NoResource
 from twisted.web.server import NOT_DONE_YET, Site
 import urllib
 
-from matrix_gitter.utils import JsonProducer, read_json_response
+from matrix_gitter.utils import Errback, JsonProducer, read_json_response
 
 
 log = logger.Logger()
@@ -89,6 +89,8 @@ class Transaction(BaseMatrixResource):
                     '_matrix/client/r0/rooms/%s/join',
                     {},
                     room)
+                d.addErrback(Errback(log, "Error joining room {room}",
+                                     room=room))
             elif (event['type'] == 'm.room.member' and
                     event['content'].get('membership') == 'join'):
                 # We or someone else joined a room
@@ -102,6 +104,9 @@ class Transaction(BaseMatrixResource):
                         limit='3')
                     d.addCallback(read_json_response)
                     d.addCallback(self.private_room_members, room)
+                    d.addErrback(Errback(
+                        log, "Error getting members of room {room}",
+                        room=room))
             elif (event['type'] == 'm.room.member' and
                     event['content'].get('membership') != 'join'):
                 # Someone left a room
@@ -131,6 +136,8 @@ class Transaction(BaseMatrixResource):
                             '_matrix/client/r0/rooms/%s/forget',
                             {},
                             room))
+                        d.addErrback(Errback(log, "Error leaving room {room}",
+                                             room=room))
             elif (event['type'] == 'm.room.message' and
                     event['content'].get('msgtype') == 'm.text'):
                 room_obj = self.api.get_room(room)
@@ -195,6 +202,7 @@ class Transaction(BaseMatrixResource):
                               '_matrix/client/r0/rooms/%s/forget',
                               {},
                               room))
+            d.addErrback(Errback(log, "Error leaving room {room}", room=room))
             self.api.forget_private_room(room)
         else:
             # Find the member that's not us
@@ -249,7 +257,7 @@ class Users(BaseMatrixResource):
             '_matrix/client/r0/register',
             {'type': 'm.login.application_service',
              'username': user_localpart})
-        #d.addErrback()
+        d.addErrback(Errback(log, "Error creating user {user}", user=user))
         d.addBoth(lambda res: self._end(request))
         return NOT_DONE_YET
 
@@ -318,6 +326,9 @@ class MatrixAPI(object):
                  'preset': 'private_chat'})
             d.addCallback(read_json_response)
             d.addCallback(self._private_chat_created, user_obj.matrix_username)
+            d.addErrback(Errback(
+                log, "Error creating private room for user {user}",
+                user=user_obj.matrix_username))
 
     def gitter_info_set(self, user_obj):
         # If we have a private chat with the user, tell him he logged in,
@@ -353,6 +364,8 @@ class MatrixAPI(object):
                 '_matrix/client/r0/rooms/%s/forget',
                 {},
                 previous_room))
+            d.addErrback(Errback(log, "Error leaving room {room}",
+                                 room=previous_room))
             return True
         else:
             return False
