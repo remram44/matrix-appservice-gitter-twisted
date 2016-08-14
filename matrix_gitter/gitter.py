@@ -70,9 +70,11 @@ class GitterAPI(object):
     def _set_user_access_token(self, (request, content),
                                matrix_user, access_token):
         github_user = content[0]['username']
+        gitter_id = content[0]['id']
         log.info("Storing Gitter access token for user {matrix}/{github}",
                  matrix=matrix_user, github=github_user)
-        self.bridge.set_gitter_info(matrix_user, github_user, access_token)
+        self.bridge.set_gitter_info(matrix_user, github_user, gitter_id,
+                                    access_token)
 
     def get_gitter_user_rooms(self, user_obj):
         d = self.gitter_request('GET', 'v1/rooms', None,

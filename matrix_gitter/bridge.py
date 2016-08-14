@@ -21,16 +21,18 @@ agent = Agent(reactor)
 
 class User(object):
     def __init__(self, matrix_username, matrix_private_room,
-                 github_username, gitter_access_token):
+                 github_username, gitter_id, gitter_access_token):
         self.matrix_username = matrix_username
         self.matrix_private_room = matrix_private_room
         self.github_username = github_username
+        self.gitter_id = gitter_id
         self.gitter_access_token = gitter_access_token
 
     @staticmethod
     def from_row(row):
         return User(row['matrix_username'], row['matrix_private_room'],
-                    row['github_username'], row['gitter_access_token'])
+                    row['github_username'], row['gitter_id'],
+                    row['gitter_access_token'])
 
 
 class Room(Protocol):
@@ -123,6 +125,7 @@ class Bridge(object):
                     matrix_username TEXT NOT NULL PRIMARY KEY,
                     matrix_private_room TEXT NULL,
                     github_username TEXT NULL,
+                    gitter_id TEXT NULL,
                     gitter_access_token TEXT NULL);
                 ''')
             self.db.execute(
@@ -172,7 +175,7 @@ class Bridge(object):
         cur = self.db.execute(
             '''
             SELECT u.matrix_username, u.matrix_private_room,
-                u.github_username, u.gitter_access_token,
+                u.github_username, u.gitter_id, u.gitter_access_token,
                 r.matrix_room, r.gitter_room_name, r.gitter_room_id
             FROM rooms r
             INNER JOIN users u ON r.user = u.matrix_username;
@@ -217,13 +220,15 @@ class Bridge(object):
         else:
             return User.from_row(row)
 
-    def set_gitter_info(self, matrix_user, github_user, access_token):
+    def set_gitter_info(self, matrix_user, github_user, gitter_id,
+                        access_token):
         self.db.execute(
             '''
-            UPDATE users SET github_username = ?, gitter_access_token = ?
+            UPDATE users SET github_username = ?, gitter_id = ?,
+                gitter_access_token = ?
             WHERE matrix_username = ?;
             ''',
-            (github_user, access_token, matrix_user))
+            (github_user, gitter_id, access_token, matrix_user))
         self.matrix.gitter_info_set(self.get_user(github_user=github_user))
 
     def set_user_private_matrix_room(self, matrix_user, room):
