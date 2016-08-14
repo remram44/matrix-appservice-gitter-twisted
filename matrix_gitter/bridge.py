@@ -45,6 +45,9 @@ class Room(Protocol):
         self.gitter_room_name = gitter_room_name
         self.gitter_room_id = gitter_room_id
 
+        self.stream_response = None
+        self.destroyed = False
+
         self.start_stream()
 
     def start_stream(self):
@@ -66,8 +69,11 @@ class Room(Protocol):
         log.info("Stream started for user {user} room {room}",
                  user=self.user.github_username, room=self.gitter_room_name)
         response.deliverBody(self)
+        self.stream_response = response
 
     def dataReceived(self, data):
+        if self.destroyed:
+            return
         log.info("Data received on stream for user {user} room {room} "
                  "({bytes} bytes)",
                  user=self.user.github_username, room=self.gitter_room_name,
@@ -95,13 +101,20 @@ class Room(Protocol):
     def connectionLost(self, reason=connectionDone):
         log.info("Lost stream for user {user} room {room}",
                  user=self.user.github_username, room=self.gitter_room_name)
-        self.start_stream()
+        self.stream_response = None
+        if not self.destroyed:
+            self.start_stream()
 
     def to_gitter(self, msg):
         pass  # TODO: forward to Gitter
 
     def destroy(self):
-        pass  # TODO: stop connection, update dicts, update database
+        if self.destroyed:
+            return
+        self.destroyed = True
+        if self.stream_response is not None:
+            self.stream_response.close()
+        self.bridge.destroy_room(self)
 
 
 class Bridge(object):
@@ -202,6 +215,18 @@ class Bridge(object):
     @property
     def bot_fullname(self):
         return self.matrix.bot_fullname
+
+    def destroy_room(self, room):
+        self.db.execute(
+            '''
+            DELETE FROM rooms
+            WHERE user = ? AND matrix_room = ?;
+            ''',
+            (room.user.matrix_username, room.matrix_room))
+        self.rooms_matrix.pop(room.matrix_room, None)
+        self.rooms_gitter_name.pop(
+            (room.user.matrix_username, room.gitter_room_name),
+            None)
 
     def get_user(self, matrix_user=None, github_user=None):
         if matrix_user is not None and github_user is None:
