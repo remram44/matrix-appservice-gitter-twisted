@@ -164,7 +164,11 @@ class Transaction(BaseMatrixResource):
 
         if first_word == 'list':
             if not rest:
-                self.api.private_message(user_obj, "TODO: list", False)
+                d = self.api.get_gitter_user_rooms(user_obj)
+                d.addCallback(self._send_room_list, user_obj)
+                d.addErrback(Errback(
+                    log, "Error getting list of rooms for user {user}",
+                    user=user_obj.github_username))
                 return
         elif first_word == 'gjoin':
             self.api.private_message(user_obj, "TODO: gjoin", False)
@@ -180,6 +184,16 @@ class Transaction(BaseMatrixResource):
             return
 
         self.api.private_message(user_obj, "Invalid command!", False)
+
+    def _send_room_list(self, rooms, user_obj):
+        log.info("Got room list for user {user} ({nb} rooms)",
+                 user=user_obj.matrix_username, nb=len(rooms))
+        msg = ["Rooms you are currently in on Gitter (* indicates you are in "
+               "that room from Matrix as well):"]
+        for gitter_id, gitter_name, matrix_name in rooms:
+            msg.append(" - %s%s" % (gitter_name,
+                                    " *" if matrix_name is not None else ""))
+        self.api.private_message(user_obj, "\n".join(msg), False)
 
     def private_room_members(self, (response, content), room):
         if response.code != 200:
@@ -384,3 +398,6 @@ class MatrixAPI(object):
 
     def gitter_auth_link(self, user):
         return self.bridge.gitter_auth_link(user)
+
+    def get_gitter_user_rooms(self, user_obj):
+        return self.bridge.get_gitter_user_rooms(user_obj)

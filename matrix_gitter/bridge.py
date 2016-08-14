@@ -273,3 +273,22 @@ class Bridge(object):
             ''',
             (matrix_user,))
         return self.get_user(matrix_user=matrix_user)
+
+    def get_gitter_user_rooms(self, user_obj):
+        d = self.gitter.get_gitter_user_rooms(user_obj)
+        d.addCallback(self._join_user_rooms, user_obj)
+        return d
+
+    def _join_user_rooms(self, rooms, user_obj):
+        # Get the rooms the user is in
+        user_rooms = dict(
+            (row['gitter_room_id'], row['matrix_room'])
+            for row in iter(self.db.execute(
+            '''
+            SELECT matrix_room, gitter_room_id FROM rooms
+            WHERE user = ?;
+            ''',
+            (user_obj.matrix_username,))))
+
+        return [(gitter_id, gitter_name, user_rooms.get(gitter_id))
+                for gitter_id, gitter_name in rooms]

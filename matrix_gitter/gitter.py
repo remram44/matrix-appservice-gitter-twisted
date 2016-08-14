@@ -71,6 +71,17 @@ class GitterAPI(object):
                  matrix=matrix_user, github=github_user)
         self.bridge.set_gitter_info(matrix_user, github_user, access_token)
 
+    def get_gitter_user_rooms(self, user_obj):
+        d = self.gitter_request('GET', 'v1/rooms', None,
+                                   user=user_obj)
+        d.addCallback(read_json_response)
+        d.addCallback(self._read_gitter_rooms)
+        return d
+
+    def _read_gitter_rooms(self, (response, content)):
+        return [(room['id'], room['url'][1:])
+                for room in content]
+
     def auth_link(self, matrix_user):
         state = '%s|%s' % (matrix_user, self.secret_hmac(matrix_user))
         return '%sauth_gitter/%s' % (self.url, urllib.quote(state))
