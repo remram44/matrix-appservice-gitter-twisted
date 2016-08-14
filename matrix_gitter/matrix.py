@@ -16,6 +16,22 @@ log = logger.Logger()
 agent = Agent(reactor)
 
 
+HELP_MESSAGE = (
+    "This service is entirely controlled through messages sent in private to "
+    "this bot. The commands I recognize are:\n"
+    " - `list`: displays the list of Gitter room you are in, that you can "
+    "join in Matrix via the `invite` command. An asterix indicates a room you "
+    "are already in through Matrix.\n"
+    " - `gjoin <gitter-room>`: join a new room on Gitter (you can then use "
+    "`invite` to talk in it from here).\n"
+    " - `gpart <gitter-room>`: leave a room on Gitter. This will kick you out "
+    "of the Matrix room if you were in it.\n"
+    " - `invite <gitter-room>`: create a Matrix room bridged to that Gitter "
+    "room and invite you to join it.\n"
+    " - `logout`: throw away your Gitter credentials. Kick you out of all the "
+    "rooms you are in.")
+
+
 def txid():
     return datetime.utcnow().isoformat()
 
@@ -76,7 +92,7 @@ class Transaction(BaseMatrixResource):
             elif (event['type'] == 'm.room.member' and
                     event['content'].get('membership') == 'join'):
                 # We or someone else joined a room
-                if not self.api.is_linked_room(room):
+                if self.api.get_room(room) is None:
                     # Request list of members
                     d = self.matrix_request(
                         'GET',
@@ -86,9 +102,77 @@ class Transaction(BaseMatrixResource):
                         limit='3')
                     d.addCallback(read_json_response)
                     d.addCallback(self.private_room_members, room)
-            # TODO: someone leaves a room
+            elif (event['type'] == 'm.room.member' and
+                    event['content'].get('membership') != 'join'):
+                # Someone left a room
+                room_obj = self.api.get_room(room)
+
+                # It's a linked room: stop forwarding
+                if room_obj is not None:
+                    log.info("User {user} left room {room}, destroying",
+                             user=user, room=room)
+                    room_obj.destroy()
+                else:
+                    # It is a user's private room
+                    user_obj = self.api.get_user(user)
+                    if (user_obj is not None and
+                            room == user_obj.matrix_private_room):
+                        log.info("User {user} left his private room {room}, "
+                                 "leaving",
+                                 user=user, room=room)
+                        self.api.forget_private_room(room)
+                        d = self.matrix_request(
+                            'POST',
+                            '_matrix/client/r0/rooms/%s/leave',
+                            {},
+                            room)
+                        d.addCallback(lambda r: self.matrix_request(
+                            'POST',
+                            '_matrix/client/r0/rooms/%s/forget',
+                            {},
+                            room))
+            elif (event['type'] == 'm.room.message' and
+                    event['content'].get('msgtype') == 'm.text'):
+                room_obj = self.api.get_room(room)
+                msg = event['content']['body']
+
+                # If it's a linked room: forward
+                if room_obj is not None:
+                    room_obj.to_gitter(msg)
+                else:
+                    user_obj = self.api.get_user(user)
+                    if (user_obj is not None and
+                            room == user_obj.matrix_private_room):
+                        self.command(user_obj, msg)
 
         return '{}'
+
+    def command(self, user_obj, msg):
+        log.info("Got command from user {user}: {msg!r}",
+                 user=user_obj.matrix_username, msg=msg)
+
+        first_word, rest = (msg.split(None, 1) + [''])[:2]
+        first_word = first_word.strip().lower()
+        rest = rest.strip()
+
+        if first_word == 'list':
+            if not rest:
+                self.api.private_message(user_obj, "TODO: list", False)
+                return
+        elif first_word == 'gjoin':
+            self.api.private_message(user_obj, "TODO: gjoin", False)
+            return
+        elif first_word == 'gpart':
+            self.api.private_message(user_obj, "TODO: gpart", False)
+            return
+        elif first_word == 'invite':
+            self.api.private_message(user_obj, "TODO: invite", False)
+            return
+        elif first_word == 'logout':
+            self.api.private_message(user_obj, "TODO: logout", False)
+            return
+
+        self.api.private_message(user_obj, "Invalid command!", False)
 
     def private_room_members(self, (response, content), room):
         if response.code != 200:
@@ -116,32 +200,29 @@ class Transaction(BaseMatrixResource):
             # Find the member that's not us
             user = [m for m in members if m != self.api.bot_fullname]
             if len(user) == 1:
-                user = self.api.get_user(user[0])
+                user_obj = self.api.get_user(user[0])
 
                 # Register this room as the private chat with that user
-                self.api.register_private_room(user.matrix_username, room)
+                self.api.register_private_room(user_obj.matrix_username, room)
+                user_obj.matrix_private_room = room
 
                 # Say hi
                 msg = ("Hi {user}! I am the interface to this Matrix-Gitter "
                        "bridge.").format(
-                    user=user.matrix_username.split(':', 1)[0])
-                if user.github_username is not None:
-                    msg += "\nYou are currently logged in as {gh}.".format(
-                        gh=user.github_username)
+                    user=user_obj.matrix_username.split(':', 1)[0])
+                if user_obj.github_username is not None:
+                    msg += "\nYou are currently logged in as {gh}.\n".format(
+                        gh=user_obj.github_username)
+                    msg += HELP_MESSAGE
                 else:
                     msg += ("\nYou will need to log in to your Gitter account "
                             "or sign up for one before I can do anything for "
                             "you.\n"
                             "You can do this now using this link: "
                             "{link}").format(
-                        link=self.api.gitter_auth_link(user.matrix_username))
-                self.matrix_request(
-                    'PUT',
-                    '_matrix/client/r0/rooms/%s/send/m.room.message/%s',
-                    {'msgtype': 'm.text',
-                     'body': msg},
-                    room,
-                    txid())
+                        link=self.api.gitter_auth_link(
+                            user_obj.matrix_username))
+                self.api.private_message(user_obj, msg, False)
 
 
 class Users(BaseMatrixResource):
@@ -220,27 +301,32 @@ class MatrixAPI(object):
                      'accept': ['application/json']}),
             JsonProducer(content) if content is not None else None)
 
-    def gitter_info_set(self, user):
-        # If we have a private chat with the user, tell him he logged in,
-        # else start new private chat
-        if user.matrix_private_room is not None:
-            msg = "You are now logged in as {gh}.".format(
-                gh=user.github_username)
+    def private_message(self, user_obj, msg, invite):
+        if user_obj.matrix_private_room is not None:
             self.matrix_request(
                 'PUT',
                 '_matrix/client/r0/rooms/%s/send/m.room.message/%s',
                 {'msgtype': 'm.text',
                  'body': msg},
-                user.matrix_private_room,
+                user_obj.matrix_private_room,
                 txid())
-        else:
+        elif invite:
             d = self.matrix_request(
                 'POST',
                 '_matrix/client/r0/createRoom',
-                {'invite': [user.matrix_username],
+                {'invite': [user_obj.matrix_username],
                  'preset': 'private_chat'})
             d.addCallback(read_json_response)
-            d.addCallback(self._private_chat_created, user.matrix_username)
+            d.addCallback(self._private_chat_created, user_obj.matrix_username)
+
+    def gitter_info_set(self, user_obj):
+        # If we have a private chat with the user, tell him he logged in,
+        # else start new private chat
+        self.private_message(user_obj,
+                             "You are now logged in as {gh}.\n{help}".format(
+                                 gh=user_obj.github_username,
+                                help=HELP_MESSAGE),
+                             True)
 
     def _private_chat_created(self, (request, content), user):
         room = content['room_id']
@@ -274,8 +360,8 @@ class MatrixAPI(object):
     def forget_private_room(self, room):
         self.bridge.forget_private_matrix_room(room)
 
-    def is_linked_room(self, room):
-        self.bridge.matrix_room_exists(room)
+    def get_room(self, room):
+        self.bridge.get_matrix_room(room)
 
     def get_user(self, user):
         user_obj = self.bridge.get_user(matrix_user=user)

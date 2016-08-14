@@ -1,12 +1,21 @@
+from itertools import chain
+import json
 import os
 import sqlite3
+import sys
 from twisted import logger
+from twisted.internet import reactor
+from twisted.internet.protocol import Protocol, connectionDone
+from twisted.python.failure import Failure
+from twisted.web.client import Agent
 
 from matrix_gitter.gitter import GitterAPI
 from matrix_gitter.matrix import MatrixAPI
 
 
 log = logger.Logger()
+
+agent = Agent(reactor)
 
 
 class User(object):
@@ -23,6 +32,68 @@ class User(object):
                     row['github_username'], row['gitter_access_token'])
 
 
+class Room(Protocol):
+    def __init__(self, bridge, user, matrix_room,
+                 gitter_room_name, gitter_room_id):
+        Protocol.__init__(self)
+        self.bridge = bridge
+        self.user = user
+        self.matrix_room = matrix_room
+        self.gitter_room_name = gitter_room_name
+        self.gitter_room_id = gitter_room_id
+
+        self.start_stream()
+
+    def start_stream(self):
+        self.content = []
+        # Start stream
+        d = self.bridge.gitter.gitter_request(
+            'GET',
+            'v1/rooms/%s/chatMessages',
+            None,
+            self.gitter_room_id,
+            user=self.user)
+        d.addCallback(self._receive_stream)
+
+    def _receive_stream(self, response):
+        log.info("Stream started for user {user} room {room}",
+                 user=self.user.github_username, room=self.gitter_room_name)
+        response.deliverBody(self)
+
+    def dataReceived(self, data):
+        log.info("Data received on stream for user {user} room {room} "
+                 "({bytes} bytes)",
+                 user=self.user.github_username, room=self.gitter_room_name,
+                 bytes=len(data))
+        if '\r' in data:
+            data = data.split('\r', 1)
+            content, self.content = self.content + [data[0]], [data[1]]
+            document = ''.join(chain(content, data))
+            try:
+                json.loads(document)
+            except Exception:
+                log.failure("Error decoding JSON on stream for user {user} "
+                            "room {room}",
+                            Failure(*sys.exc_info()),
+                            user=self.user.github_username,
+                            room=self.gitter_room_name)
+            log.info("Got message for user {user} room {room}: {msg!r}",
+                     user=self.user.github_username,
+                     room=self.gitter_room_name,
+                     msg=document)
+            # TODO: forward to Matrix
+        else:
+            self.content.append(data)
+
+    def connectionLost(self, reason=connectionDone):
+        log.info("Lost stream for user {user} room {room}",
+                 user=self.user.github_username, room=self.gitter_room_name)
+        self.start_stream()
+
+    def to_gitter(self, msg):
+        pass  # TODO: forward to Gitter
+
+
 class Bridge(object):
     """Main application object.
 
@@ -33,6 +104,8 @@ class Bridge(object):
     We also use a database to keep information about users and rooms.
     """
     def __init__(self, config):
+        self.rooms = {}
+
         create_db = not os.path.exists('database.sqlite3')
         self.db = sqlite3.connect('database.sqlite3')
         self.db.isolation_level = None
@@ -57,7 +130,8 @@ class Bridge(object):
                 CREATE TABLE rooms(
                     user TEXT NOT NULL,
                     matrix_room TEXT NULL,
-                    gitter_room TEXT NOT NULL);
+                    gitter_room_name TEXT NOT NULL,
+                    gitter_room_id TEXT NOT NULL);
                 ''')
 
         self.secret_key = config['unique_secret_key']
@@ -88,6 +162,27 @@ class Bridge(object):
             gitter_login_url,
             config['gitter_oauth_key'],
             config['gitter_oauth_secret'])
+
+        # Initialize rooms
+        cur = self.db.execute(
+            '''
+            SELECT u.matrix_username, u.matrix_private_room,
+                u.github_username, u.gitter_access_token,
+                r.matrix_room, r.gitter_room_name, r.gitter_room_id
+            FROM rooms r
+            INNER JOIN users u ON r.user = u.matrix_username;
+            ''')
+        log.info("Initializing rooms...")
+        for row in cur:
+            user = User.from_row(row)
+            matrix_room = row['matrix_room']
+            gitter_room_name = row['gitter_room_name']
+            gitter_room_id = row['gitter_room_id']
+            self.rooms[matrix_room] = Room(self, user, matrix_room,
+                                           gitter_room_name, gitter_room_id)
+            log.info("{matrix} {gitter} {user_m} {user_g}",
+                     matrix=matrix_room, gitter=gitter_room_name,
+                     user_m=user.matrix_username, user_g=user.github_username)
 
     @property
     def bot_fullname(self):
@@ -159,19 +254,8 @@ class Bridge(object):
             ''',
             (room,))
 
-    def matrix_room_exists(self, room):
-        cur = self.db.execute(
-            '''
-            SELECT user FROM rooms
-            WHERE matrix_room = ?;
-            ''',
-            (room,))
-        try:
-            next(cur)
-        except StopIteration:
-            return False
-        else:
-            return True
+    def get_matrix_room(self, matrix_room):
+        return self.rooms.get(matrix_room)
 
     def gitter_auth_link(self, matrix_user):
         return self.gitter.auth_link(matrix_user)
