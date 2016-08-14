@@ -128,7 +128,7 @@ class Room(Protocol):
             return
         self.destroyed = True
         if self.stream_response is not None:
-            self.stream_response.close()
+            self.transport.abortConnection()
         self.bridge.destroy_room(self)
 
 
