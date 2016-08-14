@@ -114,11 +114,8 @@ class GitterAPI(object):
             **kwargs)
         d.addCallback(assert_http_200)
         d.addCallback(read_json_response)
-        d.addCallback(self._get_room, gitter_room)
+        d.addCallback(lambda (r, c): c)
         return d
-
-    def _get_room(self, (response, content), gitter_room):
-        return content
 
     def join_room(self, user_obj, gitter_room_id):
         d = self.gitter_request(
