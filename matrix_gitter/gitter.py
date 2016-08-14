@@ -108,9 +108,9 @@ class GitterAPI(object):
 
     def get_room(self, gitter_room, **kwargs):
         d = self.gitter_request(
-            'GET',
-            'v1/rooms?q=%s' % urllib.quote(gitter_room),
-            None,
+            'POST',
+            'v1/rooms',
+            {'uri': gitter_room},
             **kwargs)
         d.addCallback(assert_http_200)
         d.addCallback(read_json_response)
@@ -118,9 +118,7 @@ class GitterAPI(object):
         return d
 
     def _get_room(self, (response, content), gitter_room):
-        for room in content['results']:
-            if room['url'][1:] == gitter_room:
-                return room
+        return content
 
     def join_room(self, user_obj, gitter_room_id):
         d = self.gitter_request(

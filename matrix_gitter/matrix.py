@@ -275,6 +275,8 @@ class Transaction(BaseMatrixResource):
 
     def _new_room(self, result, user_obj, gitter_room):
         if isinstance(result, Failure):
+            log.failure("Couldn't get info for room {room}", result,
+                        room=gitter_room)
             self.api.private_message(
                 user_obj,
                 "Can't access room {room}".format(room=gitter_room),
