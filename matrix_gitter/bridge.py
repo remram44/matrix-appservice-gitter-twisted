@@ -50,12 +50,12 @@ class Bridge(object):
             self.db.execute(
                 '''
                 CREATE TABLE virtual_users(
-                    matrix_username TEXT NOT NULL);
+                    matrix_username TEXT NOT NULL PRIMARY KEY);
                 ''')
             self.db.execute(
                 '''
                 CREATE TABLE rooms(
-                    user INTEGER NOT NULL,
+                    user TEXT NOT NULL,
                     matrix_room TEXT NULL,
                     gitter_room TEXT NOT NULL);
                 ''')
@@ -98,14 +98,14 @@ class Bridge(object):
             cur = self.db.execute(
                 '''
                 SELECT * FROM users
-                WHERE matrix_username=?;
+                WHERE matrix_username = ?;
                 ''',
                 (matrix_user,))
         elif github_user is not None and matrix_user is None:
             cur = self.db.execute(
                 '''
                 SELECT * FROM users
-                WHERE github_username=?;
+                WHERE github_username = ?;
                 ''',
                 (github_user,))
         else:
@@ -120,8 +120,8 @@ class Bridge(object):
     def set_gitter_info(self, matrix_user, github_user, access_token):
         self.db.execute(
             '''
-            UPDATE users SET github_username=?, gitter_access_token=?
-            WHERE matrix_username=?;
+            UPDATE users SET github_username = ?, gitter_access_token = ?
+            WHERE matrix_username = ?;
             ''',
             (github_user, access_token, matrix_user))
         self.matrix.gitter_info_set(self.get_user(github_user=github_user))
@@ -136,7 +136,7 @@ class Bridge(object):
         cur = self.db.execute(
             '''
             SELECT matrix_private_room FROM users
-            WHERE matrix_username=?;
+            WHERE matrix_username = ?;
             ''',
             (matrix_user,))
         try:
@@ -145,8 +145,8 @@ class Bridge(object):
             prev_room = None
         self.db.execute(
             '''
-            UPDATE users SET matrix_private_room=?
-            WHERE matrix_username=?;
+            UPDATE users SET matrix_private_room = ?
+            WHERE matrix_username = ?;
             ''',
             (room, matrix_user))
         return prev_room
@@ -154,8 +154,8 @@ class Bridge(object):
     def forget_private_matrix_room(self, room):
         self.db.execute(
             '''
-            UPDATE users SET matrix_private_room=NULL
-            WHERE matrix_private_room=?;
+            UPDATE users SET matrix_private_room = NULL
+            WHERE matrix_private_room = ?;
             ''',
             (room,))
 

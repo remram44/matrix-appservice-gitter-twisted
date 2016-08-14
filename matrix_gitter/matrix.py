@@ -240,9 +240,9 @@ class MatrixAPI(object):
                 {'invite': [user.matrix_username],
                  'preset': 'private_chat'})
             d.addCallback(read_json_response)
-            d.addCallback(self.private_chat_created, user.matrix_username)
+            d.addCallback(self._private_chat_created, user.matrix_username)
 
-    def private_chat_created(self, (request, content), user):
+    def _private_chat_created(self, (request, content), user):
         room = content['room_id']
         log.info("Created private chat with user {user}: {room}",
                  user=user, room=room)

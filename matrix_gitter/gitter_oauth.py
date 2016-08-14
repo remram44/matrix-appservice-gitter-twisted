@@ -107,11 +107,11 @@ class Callback(Resource):
                      'accept': ['application/json']}),
             FormProducer(postargs))
         d.addCallback(read_json_response)
-        d.addCallback(self.authorized, user, request)
+        d.addCallback(self._authorized, user, request)
         d.addErrback(self.error, request)
         return NOT_DONE_YET
 
-    def authorized(self, (response, content), user, request):
+    def _authorized(self, (response, content), user, request):
         log.info("Got response from Gitter: {code} {content!r}",
                  code=response.code, content=content)
         access_token = content['access_token']
