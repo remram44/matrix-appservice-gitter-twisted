@@ -326,6 +326,18 @@ class Bridge(object):
         d.addCallback(self._join_user_rooms, user_obj)
         return d
 
+    def get_all_rooms(self, matrix_user):
+        return self.rooms_gitter_name.get(matrix_user, {}).values()
+
+    def logout(self, matrix_user):
+        self.db.execute(
+            '''
+            UPDATE users SET github_username = NULL, gitter_id = NULL,
+                gitter_access_token = NULL
+            WHERE matrix_username = ?;
+            ''',
+            (matrix_user,))
+
     def _join_user_rooms(self, rooms, user_obj):
         # Get the rooms the user is in
         user_rooms = dict(

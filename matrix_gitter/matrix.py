@@ -196,7 +196,22 @@ class Transaction(BaseMatrixResource):
             self.api.private_message(user_obj, "TODO: invite", False)
             return
         elif first_word == 'logout':
-            self.api.private_message(user_obj, "TODO: logout", False)
+            for room_obj in self.api.get_all_rooms(user_obj.matrix_username):
+                room_obj.destroy()
+            self.api.logout(user_obj.matrix_username)
+            self.api.private_message(user_obj, "You have been logged out.",
+                                     False)
+            d = self.matrix_request(
+                'POST',
+                '_matrix/client/r0/rooms/%s/leave',
+                {},
+                user_obj.matrix_private_room)
+            d.addCallback(lambda r: self.matrix_request(
+                              'POST',
+                              '_matrix/client/r0/rooms/%s/forget',
+                              {},
+                user_obj.matrix_private_room))
+            self.api.forget_private_room(user_obj.matrix_private_room)
             return
 
         self.api.private_message(user_obj, "Invalid command!", False)
@@ -426,6 +441,12 @@ class MatrixAPI(object):
     def get_gitter_room(self, matrix_username, gitter_room):
         return self.bridge.get_room(matrix_username=matrix_username,
                                     gitter_room_name=gitter_room)
+
+    def get_all_rooms(self, user):
+        return self.bridge.get_all_rooms(user)
+
+    def logout(self, user):
+        self.bridge.logout(user)
 
     def get_user(self, user):
         user_obj = self.bridge.get_user(matrix_user=user)
