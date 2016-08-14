@@ -79,20 +79,26 @@ class Room(Protocol):
         if '\n' in data:
             data = data.split('\n', 1)
             content, self.content = self.content + [data[0]], [data[1]]
-            document = ''.join(content)
+            document = ''.join(content).strip()
+            if not document:
+                return
             try:
-                json.loads(document)
+                message = json.loads(document)
             except Exception:
                 log.failure("Error decoding JSON on stream for user {user} "
                             "room {room}",
-                            Failure(*sys.exc_info()),
                             user=self.user.github_username,
                             room=self.gitter_room_name)
-            log.info("Got message for user {user} room {room}: {msg!r}",
-                     user=self.user.github_username,
-                     room=self.gitter_room_name,
-                     msg=document)
-            # TODO: forward to Matrix
+            else:
+                log.info("Got message for user {user} room {room}: {msg!r}",
+                         user=self.user.github_username,
+                         room=self.gitter_room_name,
+                         msg=message)
+                try:
+                    self.to_matrix(message['fromUser']['username'],
+                                   message['text'])
+                except Exception:
+                    log.failure("Exception handling Gitter message")
         else:
             self.content.append(data)
 
@@ -104,7 +110,18 @@ class Room(Protocol):
             reactor.callLater(30, self.start_stream)
 
     def to_gitter(self, msg):
-        pass  # TODO: forward to Gitter
+        d = self.bridge.gitter.gitter_request(
+            'POST',
+            'v1/rooms/%s/chatMessages',
+            {'text': msg},
+            self.gitter_room_id,
+            user=self.user)
+        d.addErrback(Errback(log,
+                             "Error posting message to Gitter room {room}",
+                             room=self.gitter_room_name))
+
+    def to_matrix(self, username, msg):
+        pass  # TODO
 
     def destroy(self):
         if self.destroyed:
