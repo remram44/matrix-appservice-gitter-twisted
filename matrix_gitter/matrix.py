@@ -149,7 +149,8 @@ class Transaction(BaseMatrixResource):
 
                     # If it's a linked room: forward
                     if room_obj is not None:
-                        room_obj.to_gitter(msg)
+                        if user == room_obj.user.matrix_username:
+                            room_obj.to_gitter(msg)
                     else:
                         user_obj = self.api.get_user(user)
                         if (user_obj is not None and
