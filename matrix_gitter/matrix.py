@@ -418,12 +418,15 @@ class MatrixAPI(object):
             uri = uri.encode('ascii')
         getargs = {'access_token': self.token_as}
         getargs.update(kwargs)
+        uri = '%s%s?%s' % (
+            self.homeserver_url,
+            uri,
+            urllib.urlencode(getargs))
+        log.debug("matrix_request {method} {uri} {content!r}",
+                  method=method, uri=uri, content=content)
         d = agent.request(
             method,
-            '%s%s?%s' % (
-                self.homeserver_url,
-                uri,
-                urllib.urlencode(getargs)),
+            uri,
             Headers({'content-type': ['application/json'],
                      'accept': ['application/json']}),
             JsonProducer(content) if content is not None else None)

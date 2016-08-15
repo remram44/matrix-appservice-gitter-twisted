@@ -77,7 +77,15 @@ def read_form_response(response):
     return d
 
 
+def _assert_fail(content, response):
+    raise IOError("HTTP %d: %s" % (response.code, content))
+
+
 def assert_http_200(response):
     if response.code != 200:
-        raise IOError("HTTP %d" % response.code)
-    return response
+        d = defer.Deferred()
+        response.deliverBody(StringReceiver(response, d))
+        d.addCallback(_assert_fail, response)
+        return d
+    else:
+        return response
