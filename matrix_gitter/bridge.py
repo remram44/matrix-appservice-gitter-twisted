@@ -129,7 +129,7 @@ class Room(Protocol):
             return
         self.destroyed = True
         if self.stream_response is not None:
-            self.transport.abortConnection()
+            pass  # FIXME: how to close the connection?
         self.bridge.destroy_room(self)
 
 
