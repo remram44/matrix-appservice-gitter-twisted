@@ -20,7 +20,7 @@ The user can join or leave Gitter rooms by sending commands to the bot::
 Current status
 --------------
 
-This is still work-in-progress. The Gitter side is not implemented yet, so this doesn't do anything useful out of the box.
+This works but is still in development. While you are welcome to use it, expect bugs and do not rely on it in a production environment. Feedback is appreciated.
 
 Deployment guide
 ----------------
