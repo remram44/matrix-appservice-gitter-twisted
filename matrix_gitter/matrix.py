@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+from twisted.internet import defer
 from twisted.internet import reactor
 from twisted.python.failure import Failure
 from twisted.web.client import Agent
@@ -422,8 +423,8 @@ class MatrixAPI(object):
             self.homeserver_url,
             uri,
             urllib.urlencode(getargs))
-        log.debug("matrix_request {method} {uri} {content!r}",
-                  method=method, uri=uri, content=content)
+        log.info("matrix_request {method} {uri} {content!r}",
+                 method=method, uri=uri, content=content)
         d = agent.request(
             method,
             uri,
@@ -433,6 +434,63 @@ class MatrixAPI(object):
         if kwargs.pop('assert200', True):
             d.addCallback(assert_http_200)
         return d
+
+    def gitter_info_set(self, user_obj):
+        # If we have a private chat with the user, tell him he logged in,
+        # else start new private chat
+        self.private_message(user_obj,
+                             "You are now logged in as {gh}.\n{help}".format(
+                                 gh=user_obj.github_username,
+                                 help=HELP_MESSAGE),
+                             True)
+
+    def forward_message(self, room, username, msg):
+        user = '@gitter_%s:%s' % (username, self.homeserver_domain)
+
+        if not self.bridge.virtualuser_exists(username):
+            log.info("Creating user {user}", user=username)
+            d = self.matrix_request(
+                'POST',
+                '_matrix/client/r0/register',
+                {'type': 'm.login.application_service',
+                 'username': 'gitter_%s' % username},
+                assert200=False)
+            self.bridge.add_virtualuser(username)
+        else:
+            d = defer.succeed(None)
+        # FIXME: No need to invite & join everytime
+        d.addCallback(self._invite_user, room, user)
+        d.addCallback(self._join_user, room, user)
+        d.addCallback(self._post_message, room, user, msg)
+        d.addErrback(Errback(log,
+                             "Error posting message to Matrix room {room}",
+                             room=room))
+
+    def _invite_user(self, response, room, user):
+        return self.matrix_request(
+            'POST',
+            '_matrix/client/r0/rooms/%s/invite',
+            {'user_id': user},
+            room,
+            assert200=False)
+
+    def _join_user(self, response, room, user):
+        return self.matrix_request(
+            'POST',
+            '_matrix/client/r0/rooms/%s/join',
+            {},
+            room,
+            user_id=user)
+
+    def _post_message(self, response, room, user, msg):
+        return self.matrix_request(
+            'PUT',
+            '_matrix/client/r0/rooms/%s/send/m.room.message/%s',
+            {'msgtype': 'm.text',
+             'body': msg},
+            room,
+            txid(),
+            user_id=user)
 
     def private_message(self, user_obj, msg, invite):
         if user_obj.matrix_private_room is not None:
@@ -454,15 +512,6 @@ class MatrixAPI(object):
             d.addErrback(Errback(
                 log, "Error creating private room for user {user}",
                 user=user_obj.matrix_username))
-
-    def gitter_info_set(self, user_obj):
-        # If we have a private chat with the user, tell him he logged in,
-        # else start new private chat
-        self.private_message(user_obj,
-                             "You are now logged in as {gh}.\n{help}".format(
-                                 gh=user_obj.github_username,
-                                help=HELP_MESSAGE),
-                             True)
 
     def _private_chat_created(self, (request, content), user):
         room = content['room_id']

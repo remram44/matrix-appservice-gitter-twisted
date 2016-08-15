@@ -121,7 +121,8 @@ class Room(Protocol):
                              room=self.gitter_room_name))
 
     def to_matrix(self, username, msg):
-        pass  # TODO
+        if username != self.user.github_username:
+            self.bridge.matrix.forward_message(self.matrix_room, username, msg)
 
     def destroy(self):
         if self.destroyed:
@@ -355,8 +356,7 @@ class Bridge(object):
         try:
             raise RuntimeError("CREATING USER FOR BOT")
         except RuntimeError:
-            log.failure("CREATING USER FOR BOT",
-                        Failure(*sys.exc_info()))
+            log.failure("CREATING USER FOR BOT")
         self.db.execute(
             '''
             INSERT OR IGNORE INTO users(matrix_username)
@@ -404,3 +404,25 @@ class Bridge(object):
 
     def leave_gitter_room(self, user_obj, gitter_room):
         return self.gitter.leave_room(user_obj, gitter_room)
+
+    def virtualuser_exists(self, username):
+        cur = self.db.execute(
+            '''
+            SELECT matrix_username FROM virtual_users
+            WHERE matrix_username = ?;
+            ''',
+            (username,))
+        try:
+            next(cur)
+        except StopIteration:
+            return False
+        else:
+            return True
+
+    def add_virtualuser(self, username):
+        self.db.execute(
+            '''
+            INSERT OR IGNORE INTO virtual_users(matrix_username)
+            VALUES(?);
+            ''',
+            (username,))
