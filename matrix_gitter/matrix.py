@@ -287,7 +287,8 @@ class Transaction(BaseMatrixResource):
         d = self.matrix_request(
             'POST',
             '_matrix/client/r0/createRoom',
-            {'preset': 'private_chat'})
+            {'preset': 'private_chat',
+             'name': "%s (Gitter)" % gitter_room})
         d.addCallback(read_json_response)
         d.addCallback(self._bridge_rooms, user_obj, result)
         d.addErrback(Errback(log, "Couldn't create a room"))
