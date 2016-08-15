@@ -89,7 +89,7 @@ class Transaction(BaseMatrixResource):
                 log.info("Joining room {room}", room=room)
                 d = self.matrix_request(
                     'POST',
-                    '_matrix/client/r0/rooms/%s/join',
+                    '_matrix/client/r0/join/%s',
                     {},
                     room)
                 d.addErrback(Errback(log, "Error joining room {room}",
@@ -289,6 +289,7 @@ class Transaction(BaseMatrixResource):
             '_matrix/client/r0/createRoom',
             {'preset': 'private_chat',
              'name': "%s (Gitter)" % gitter_room})
+        # FIXME: don't allow the user to invite/... in that room
         d.addCallback(read_json_response)
         d.addCallback(self._bridge_rooms, user_obj, result)
         d.addErrback(Errback(log, "Couldn't create a room"))
@@ -370,7 +371,7 @@ class Users(BaseMatrixResource):
 
         log.info("Requested user {user}", user=user)
         user_localpart = user.split(':', 1)[0][1:]
-        if not user_localpart.startswith('twisted_yes_'):
+        if not user_localpart.startswith('gitter'):
             request.setResponseCode(404)
             return '{"errcode": "twisted.no_such_user"}'
         d = self.matrix_request(
