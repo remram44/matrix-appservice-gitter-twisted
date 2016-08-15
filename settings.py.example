@@ -3,7 +3,7 @@ unique_secret_key = 'change this before running'
 matrix_appservice_port = 8445
 matrix_homeserver_url = 'http://10.4.0.1:8440/'
 matrix_homeserver_domain = 'gitter.remram.fr'
-matrix_botname = '@twisted:gitter.remram.fr'
+matrix_botname = '@gitter:gitter.remram.fr'
 matrix_appservice_token = '42BsbMzpRXQOD+7KF9yTGzlJbgxK2z+Nmq0E082C'
 matrix_homeserver_token = '42xRrUOvzFWskYrSyeKVUlsvQ5I2/CuRMB8XtMll'
 
