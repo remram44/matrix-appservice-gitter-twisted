@@ -1,3 +1,6 @@
+..  image:: https://remram44.github.io/matrix-appservice-gitter-twisted/img/matrix-badge.svg
+    :target: https://vector.im/beta/#/room/#gitter-twisted:matrix.org)
+
 Matrix-Gitter bridge using Twisted
 ==================================
 
