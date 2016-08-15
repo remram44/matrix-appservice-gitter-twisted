@@ -29,9 +29,44 @@ Deployment guide
 ----------------
 
 - Install and setup a homeserver
-- Write a registration file for this application service
-- Copy ``settings.py.example`` to ``settings.py`` and edit the configuration
-- Run this software
+- Sign up for a Gitter application on https://developer.gitter.im/apps; your URL should be your server hostname (``gitter_login_url`` in settings) with path ``/callback``, example ``https://gitter.remram.fr/callback``.
+- Write a registration file for this application service, based on this:
+
+  .. code-block:: yaml
+
+    id: gitter                      # An identifier, unique within your appservices
+    hs_token: "changeme42changeme"  # Token you will set in the settings as matrix_homeserver_token
+    as_token: "changeme42changeme"  # Token you will set in the settings as matrix_appservice_token
+    namespaces:
+      users:
+        - exclusive: true
+          regex: '@gitter.*'        # You can't change this currently
+      aliases: []
+      rooms: []
+    url: 'https://127.0.0.1:8445'   # URL of your appservice; probably local. Port should match matrix_appservice_port
+    sender_localpart: gitter        # Has to fall within user namespace regex, and match matrix_botname in settings
+
+- Create ``settings.py`` and edit the configuration
+
+  .. code-block:: python
+
+    unique_secret_key = 'change this before running'    # A unique secret string for HMAC
+
+    matrix_appservice_port = 8445                       # Should match url in registration
+    matrix_homeserver_url = 'https://127.0.0.1:8448/'   # URL of your homeserver, usually local
+    matrix_homeserver_domain = 'gitter.remram.fr'       # The domain your homeserver uses
+    matrix_botname = '@gitter:gitter.remram.fr'         # Should be sender_localpart in registration + domain
+    matrix_appservice_token = 'changeme42changeme'      # as_token from registration
+    matrix_homeserver_token = 'changeme42changeme'      # hs_token from registration
+
+    gitter_login_port = 80                              # Port the OAuth webapp is listening on. Should match
+                                                        # gitter_login_url, unless you have a reverse proxy in the middle
+    gitter_login_url = 'http://gitter.remram.fr/'       # URL sent to users to register. When registering your
+                                                        # Gitter app, use this + /callback as redirect URL
+    gitter_oauth_key = 'get this from Gitter'           # Key for your registered Gitter app
+    gitter_oauth_secret = 'get this from Gitter'        # Secret for your registered Gitter app
+
+- Run this software; it will create a file ``database.sqlite`` in the current folder, so make sure it has permission to do that.
 
 Internals
 ---------
