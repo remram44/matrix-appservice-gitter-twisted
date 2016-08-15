@@ -135,7 +135,8 @@ class Callback(Resource):
 
 
 def setup_gitter_oauth(api, port):
-    root = Index(api.bot_fullname)
+    root = Resource()
+    root.putChild('', Index(api.bot_fullname))
     root.putChild('auth_gitter', Redirect(api))
     root.putChild('callback', Callback(api))
     site = Site(root)
