@@ -6,6 +6,7 @@ from twisted import logger
 
 
 def main():
+    # Log to stderr
     logger.globalLogPublisher.addObserver(
         logger.FileLogObserver(sys.stderr, logger.formatEventAsClassicLogText))
 

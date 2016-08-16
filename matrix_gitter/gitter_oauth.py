@@ -25,6 +25,8 @@ HTML_TEMPLATE = '''\
 
 
 class Index(Resource):
+    """Index page, showing some info about this system.
+    """
     def __init__(self, botname):
         self.botname = botname
         Resource.__init__(self)
@@ -46,6 +48,8 @@ class Index(Resource):
 
 
 class Redirect(Resource):
+    """Starting point for OAuth, redirects to Gitter.
+    """
     isLeaf = True
 
     def __init__(self, api):
@@ -81,6 +85,8 @@ class Redirect(Resource):
 
 
 class Callback(Resource):
+    """Page that Gitter redirects users to once they approve the app.
+    """
     isLeaf = True
 
     def __init__(self, api):
@@ -135,6 +141,8 @@ class Callback(Resource):
 
 
 def setup_gitter_oauth(api, port):
+    """Register the OAuth website with Twisted.
+    """
     root = Resource()
     root.putChild('', Index(api.bot_fullname))
     root.putChild('auth_gitter', Redirect(api))

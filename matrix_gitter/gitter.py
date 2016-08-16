@@ -36,9 +36,13 @@ class GitterAPI(object):
         return self.bridge.bot_fullname
 
     def secret_hmac(self, msg):
+        """HMAC a message with the secret in the config.
+        """
         return hmac.new(self.bridge.secret_key, msg, hashlib.sha1).hexdigest()
 
     def gitter_request(self, method, uri, content, *args, **kwargs):
+        """Gitter API request.
+        """
         if 'access_token' in kwargs:
             access_token = kwargs.pop('access_token')
         else:
@@ -58,6 +62,8 @@ class GitterAPI(object):
             JsonProducer(content) if content is not None else None)
 
     def gitter_stream(self, method, uri, *args, **kwargs):
+        """Request to Gitter's streaming API.
+        """
         if 'access_token' in kwargs:
             access_token = kwargs.pop('access_token')
         else:
@@ -74,6 +80,8 @@ class GitterAPI(object):
             Headers(headers))
 
     def set_access_token(self, matrix_user, access_token):
+        """Set the access token for a user who completed OAuth.
+        """
         log.info("Getting GitHub username for Matrix user {matrix}",
                  matrix=matrix_user)
         d = self.gitter_request('GET', 'v1/user', None,
@@ -95,6 +103,8 @@ class GitterAPI(object):
                                     access_token)
 
     def get_gitter_user_rooms(self, user_obj):
+        """List the Gitter rooms a user is in.
+        """
         d = self.gitter_request('GET', 'v1/rooms', None,
                                    user=user_obj)
         d.addCallback(assert_http_200)
@@ -107,6 +117,8 @@ class GitterAPI(object):
                 for room in content]
 
     def get_room(self, gitter_room, **kwargs):
+        """Get a Gitter room without joining it.
+        """
         d = self.gitter_request(
             'POST',
             'v1/rooms',
@@ -118,6 +130,8 @@ class GitterAPI(object):
         return d
 
     def join_room(self, user_obj, gitter_room_id):
+        """Join a Gitter room.
+        """
         d = self.gitter_request(
             'POST',
             'v1/user/%s/rooms',
@@ -130,6 +144,8 @@ class GitterAPI(object):
         return d
 
     def leave_room(self, user_obj, gitter_room):
+        """Leave a Gitter room.
+        """
         d = self.get_room(gitter_room, user=user_obj)
         d.addCallback(self._leave_room, user_obj)
         return d
@@ -145,5 +161,7 @@ class GitterAPI(object):
             user=user_obj)
 
     def auth_link(self, matrix_user):
+        """Get the link a user should visit to authenticate.
+        """
         state = '%s|%s' % (matrix_user, self.secret_hmac(matrix_user))
         return '%sauth_gitter/%s' % (self.url, urllib.quote(state))
