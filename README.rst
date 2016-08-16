@@ -15,10 +15,7 @@ User experience
 
 Interaction happens through a bot. Just start chatting with ``@gitter:gitter.remram.fr``, and it will give you a link to log in to your Gitter account. Then the bot will invite you to the Gitter rooms you are already in. Those are private rooms, that do NOT have an alias like ``#gitterHQ/gitter``.
 
-The user can join or leave Gitter rooms by sending commands to the bot::
-
-    join gitterHQ/gitter
-    leave gitterHQ/sandbox
+The user can join or leave Gitter rooms by sending commands to the bot.
 
 Current status
 --------------
