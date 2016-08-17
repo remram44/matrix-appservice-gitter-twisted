@@ -36,10 +36,17 @@ HELP_MESSAGE = (
 
 
 def txid():
+    """Return a unique ID for transactions.
+    """
     return datetime.utcnow().isoformat()
 
 
 class BaseMatrixResource(Resource):
+    """Base class for resources called by the homeserver; checks token.
+
+    This hold the `api` attribute and checks the access token provided by the
+    homeserver on each request.
+    """
     def __init__(self, api):
         self.api = api
         Resource.__init__(self)
@@ -66,6 +73,10 @@ class BaseMatrixResource(Resource):
 
 
 class Transaction(BaseMatrixResource):
+    """`/transactions/<txid>` endpoint, where the homeserver delivers events.
+
+    This reacts to events from Matrix.
+    """
     isLeaf = True
 
     def render_PUT(self, request):
@@ -86,6 +97,7 @@ class Transaction(BaseMatrixResource):
             if (event['type'] == 'm.room.member' and
                     event['content'].get('membership') == 'invite'):
                 # We've been invited to a room, join it
+                # FIXME: Remember rooms we've left from private_room_members
                 log.info("Joining room {room}", room=room)
                 d = self.matrix_request(
                     'POST',
@@ -98,7 +110,10 @@ class Transaction(BaseMatrixResource):
                     event['content'].get('membership') == 'join'):
                 # We or someone else joined a room
                 if self.api.get_room(room) is None:
-                    # Request list of members
+                    # We want to be in private chats with users, but either we
+                    # or them may invite; this indicates that the second party
+                    # has joined, or that we have joined an empty room.
+                    # Request the list of members to find out
                     d = self.matrix_request(
                         'GET',
                         '_matrix/client/r0/rooms/%s/members',
@@ -110,8 +125,11 @@ class Transaction(BaseMatrixResource):
                     d.addErrback(Errback(
                         log, "Error getting members of room {room}",
                         room=room))
+                # We don't care about joins to linked rooms, they have to be
+                # virtual users
             elif (event['type'] == 'm.room.member' and
                     event['content'].get('membership') != 'join'):
+                # FIXME: can this be triggered by other people getting invited?
                 # Someone left a room
                 room_obj = self.api.get_room(room)
 
@@ -143,6 +161,7 @@ class Transaction(BaseMatrixResource):
                                              room=room))
             elif (event['type'] == 'm.room.message' and
                     event['content'].get('msgtype') == 'm.text'):
+                # Text message to a room
                 if user != self.api.bot_fullname:
                     room_obj = self.api.get_room(room)
                     msg = event['content']['body']
@@ -151,6 +170,7 @@ class Transaction(BaseMatrixResource):
                     if room_obj is not None:
                         if user == room_obj.user.matrix_username:
                             room_obj.to_gitter(msg)
+                    # If it's a message on a private room, handle a command
                     else:
                         user_obj = self.api.get_user(user)
                         if (user_obj is not None and
@@ -166,6 +186,8 @@ class Transaction(BaseMatrixResource):
         return '{}'
 
     def command(self, user_obj, msg):
+        """Handle a command receive from a user in private chat.
+        """
         log.info("Got command from user {user}: {msg!r}",
                  user=user_obj.matrix_username, msg=msg)
 
@@ -206,6 +228,7 @@ class Transaction(BaseMatrixResource):
             return
         elif first_word == 'invite':
             room_obj = self.api.get_gitter_room(user_obj.matrix_username, rest)
+            # Room already exist: invite anyway and display a message
             if room_obj is not None:
                 d = self.api.matrix_request(
                     'POST',
@@ -224,6 +247,7 @@ class Transaction(BaseMatrixResource):
                     False)
             else:
                 # Check if the room is available
+                # FIXME: We want to know if the user is on it
                 d = self.api.peek_gitter_room(user_obj, rest)
                 d.addBoth(self._new_room, user_obj, rest)
             return
@@ -290,7 +314,7 @@ class Transaction(BaseMatrixResource):
             '_matrix/client/r0/createRoom',
             {'preset': 'private_chat',
              'name': "%s (Gitter)" % gitter_room})
-        # FIXME: don't allow the user to invite/... in that room
+        # FIXME: don't allow the user to invite others to that room
         d.addCallback(read_json_response)
         d.addCallback(self._bridge_rooms, user_obj, result)
         d.addErrback(Errback(log, "Couldn't create a room"))
@@ -305,8 +329,15 @@ class Transaction(BaseMatrixResource):
             '_matrix/client/r0/rooms/%s/invite',
             {'user_id': user_obj.matrix_username},
             matrix_room)
+        # FIXME: Should we only start forwarding when the user joins?
 
     def private_room_members(self, (response, content), room):
+        """Get list of members on what should be a private room.
+
+        If there is one member, wait for someone to join.
+        If there are two members, this is now the private room for that user.
+        If there are more members, leave it.
+        """
         members = [m['state_key']
                    for m in content['chunk']
                    if m['content']['membership'] == 'join']
@@ -357,6 +388,9 @@ class Transaction(BaseMatrixResource):
 
 
 class Users(BaseMatrixResource):
+    """Endpoint that creates users the homeserver asks about.
+    """
+    # FIXME: useless since we create all the needed virtual users?
     isLeaf = True
 
     def _end(self, request):
@@ -416,6 +450,8 @@ class MatrixAPI(object):
         reactor.listenTCP(port, site)
 
     def matrix_request(self, method, uri, content, *args, **kwargs):
+        """Matrix client->homeserver API request.
+        """
         if args:
             uri = uri % tuple(urllib.quote(a) for a in args)
         if isinstance(uri, unicode):
@@ -439,6 +475,10 @@ class MatrixAPI(object):
         return d
 
     def gitter_info_set(self, user_obj):
+        """Called from the Bridge when we get a user's Gitter info.
+
+        This happens when a user authenticates through the OAuth webapp.
+        """
         # If we have a private chat with the user, tell him he logged in,
         # else start new private chat
         self.private_message(user_obj,
@@ -448,6 +488,10 @@ class MatrixAPI(object):
                              True)
 
     def forward_message(self, room, username, msg):
+        """Called from the Bridge to send a forwarded message to a room.
+
+        Creates the user, invites him on the room, then speak the message.
+        """
         user = '@gitter_%s:%s' % (username, self.homeserver_domain)
 
         if not self.bridge.virtualuser_exists(username):
@@ -461,7 +505,7 @@ class MatrixAPI(object):
             self.bridge.add_virtualuser(username)
         else:
             d = defer.succeed(None)
-        # FIXME: No need to invite & join everytime
+        # FIXME: No need to invite & join everytime, store this in DB
         d.addCallback(self._invite_user, room, user)
         d.addCallback(self._join_user, room, user)
         d.addCallback(self._post_message, room, user, msg)
@@ -496,6 +540,11 @@ class MatrixAPI(object):
             user_id=user)
 
     def private_message(self, user_obj, msg, invite):
+        """Send a message to a user on the appropriate private room.
+
+        If we have no private room with the requested user, `invite` indicates
+        whether to create a private room and invite him.
+        """
         if user_obj.matrix_private_room is not None:
             self.matrix_request(
                 'PUT',
@@ -523,6 +572,8 @@ class MatrixAPI(object):
         self.register_private_room(user, room)
 
     def register_private_room(self, user, room):
+        """Set the private room with a user, getting rid of the previous one.
+        """
         log.info("Storing new private room for user {user}: {room}",
                  user=user, room=room)
         previous_room = self.bridge.set_user_private_matrix_room(user, room)
@@ -548,41 +599,74 @@ class MatrixAPI(object):
             return False
 
     def forget_private_room(self, room):
+        """Forget a Matrix room that was someone's private room.
+        """
         self.bridge.forget_private_matrix_room(room)
 
     def get_room(self, room=None):
+        """Find a linked room from its Matrix ID.
+        """
         return self.bridge.get_room(matrix_room=room)
 
     def get_gitter_room(self, matrix_username, gitter_room):
+        """Find a linked room from the user and Gitter name.
+        """
         return self.bridge.get_room(matrix_username=matrix_username,
                                     gitter_room_name=gitter_room)
 
     def get_all_rooms(self, user):
+        """Get the list of all linked rooms for a given Matrix user.
+        """
         return self.bridge.get_all_rooms(user)
 
     def logout(self, user):
+        """Removes a user's Gitter info from the database.
+
+        This assumes all his linked rooms are already gone.
+        """
         self.bridge.logout(user)
 
     def get_user(self, user):
+        """Find a user in the database from its Matrix username.
+        """
         user_obj = self.bridge.get_user(matrix_user=user)
         if user_obj is None:
             return self.bridge.create_user(user)
         return user_obj
 
-    def gitter_auth_link(self, user):
-        return self.bridge.gitter_auth_link(user)
-
     def get_gitter_user_rooms(self, user_obj):
+        """List the Gitter rooms a user is in.
+
+        The user is in these on Gitter and not necessarily through Matrix.
+        """
         return self.bridge.get_gitter_user_rooms(user_obj)
 
     def peek_gitter_room(self, user_obj, gitter_room_name):
+        """Get info on a Gitter room without joining it.
+        """
+        # FIXME: This should indicate if the user is on it
         return self.bridge.peek_gitter_room(user_obj, gitter_room_name)
 
     def join_gitter_room(self, user_obj, gitter_room_id):
+        """Join a Gitter room.
+
+        This happens on Gitter only and does not mean the room becomes linked.
+        """
         return self.bridge.join_gitter_room(user_obj, gitter_room_id)
 
     def leave_gitter_room(self, user_obj, gitter_room_name):
+        """Leave a Gitter room.
+
+        This assumes the room is not longer linked for the user.
+        """
         return self.bridge.leave_gitter_room(user_obj, gitter_room_name)
 
     def bridge_rooms(self, user_obj, matrix_room, gitter_room_obj):
+        """Setup a linked room and start forwarding.
+        """
         self.bridge.bridge_rooms(user_obj, matrix_room, gitter_room_obj)
+
+    def gitter_auth_link(self, user):
+        """Get the link a user should visit to authenticate.
+        """
+        return self.bridge.gitter_auth_link(user)
