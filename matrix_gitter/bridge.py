@@ -189,6 +189,8 @@ class Bridge(object):
                     gitter_room_id TEXT NOT NULL);
                 ''')
 
+        self.debug = config.get('DEBUG', False)
+
         self.secret_key = config['unique_secret_key']
         if self.secret_key == 'change this before running':
             raise RuntimeError("Please go over the configuration and set "
@@ -205,7 +207,8 @@ class Bridge(object):
             config['matrix_homeserver_domain'],
             config['matrix_botname'],
             config['matrix_appservice_token'],
-            config['matrix_homeserver_token'])
+            config['matrix_homeserver_token'],
+            debug = self.debug)
 
         gitter_login_url = config['gitter_login_url']
         if gitter_login_url[-1] != '/':
@@ -216,7 +219,8 @@ class Bridge(object):
             config['gitter_login_port'],
             gitter_login_url,
             config['gitter_oauth_key'],
-            config['gitter_oauth_secret'])
+            config['gitter_oauth_secret'],
+            debug=self.debug)
 
         # Initialize rooms
         cur = self.db.execute(

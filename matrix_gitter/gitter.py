@@ -22,14 +22,14 @@ class GitterAPI(object):
     This communicates with Gitter using their API, authenticating via OAuth2 as
     specific users.
     """
-    def __init__(self, bridge, port, url, oauth_key, oauth_secret):
+    def __init__(self, bridge, port, url, oauth_key, oauth_secret, debug=False):
         self.bridge = bridge
 
         self.oauth_key = oauth_key
         self.oauth_secret = oauth_secret
         self.url = url
 
-        setup_gitter_oauth(self, port)
+        setup_gitter_oauth(self, port, debug=debug)
 
     @property
     def bot_fullname(self):

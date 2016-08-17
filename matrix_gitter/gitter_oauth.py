@@ -140,7 +140,7 @@ class Callback(Resource):
         request.finish()
 
 
-def setup_gitter_oauth(api, port):
+def setup_gitter_oauth(api, port, debug=False):
     """Register the OAuth website with Twisted.
     """
     root = Resource()
@@ -148,5 +148,6 @@ def setup_gitter_oauth(api, port):
     root.putChild('auth_gitter', Redirect(api))
     root.putChild('callback', Callback(api))
     site = Site(root)
+    site.displayTracebacks = debug
     site.logRequest = True
     reactor.listenTCP(port, site)

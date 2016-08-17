@@ -425,8 +425,7 @@ class MatrixAPI(object):
     This communicates with a Matrix homeserver as an application service.
     """
     def __init__(self, bridge, port, homeserver_url, homeserver_domain,
-                 botname,
-                 token_as, token_hs):
+                 botname, token_as, token_hs, debug=False):
         self.bridge = bridge
         self.homeserver_url = homeserver_url
         self.homeserver_domain = homeserver_domain
@@ -446,6 +445,7 @@ class MatrixAPI(object):
         root.putChild('transactions', Transaction(self))
         root.putChild('users', Users(self))
         site = Site(root)
+        site.displayTracebacks = debug
         site.logRequest = True
         reactor.listenTCP(port, site)
 
