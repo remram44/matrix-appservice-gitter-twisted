@@ -494,7 +494,7 @@ class MatrixAPI(object):
         """
         user = '@gitter_%s:%s' % (username, self.homeserver_domain)
 
-        if not self.bridge.virtualuser_exists(username):
+        if not self.bridge.virtualuser_exists('gitter_%s' % username):
             log.info("Creating user {user}", user=username)
             d = self.matrix_request(
                 'POST',
@@ -502,7 +502,7 @@ class MatrixAPI(object):
                 {'type': 'm.login.application_service',
                  'username': 'gitter_%s' % username},
                 assert200=False)
-            self.bridge.add_virtualuser(username)
+            self.bridge.add_virtualuser('gitter_%s' % username)
         else:
             d = defer.succeed(None)
         # FIXME: No need to invite & join everytime, store this in DB
