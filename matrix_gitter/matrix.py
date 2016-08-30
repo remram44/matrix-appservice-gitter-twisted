@@ -441,6 +441,19 @@ class MatrixAPI(object):
         self.bot_username = botname
         self.bot_fullname = '@%s:%s' % (botname, homeserver_domain)
 
+        # Create virtual user for bot
+        if not self.bridge.virtualuser_exists('gitter'):
+            log.info("Creating user gitter")
+            d = self.matrix_request(
+                'POST',
+                '_matrix/client/r0/register',
+                {'type': 'm.login.application_service',
+                 'username': 'gitter'})
+            self.bridge.add_virtualuser('gitter')
+            d.addErrback(Errback(log, "Error creating user 'gitter' for the "
+                                      "bridge; usage over federated rooms "
+                                      "might not work correctly"))
+
         root = Resource()
         root.putChild('transactions', Transaction(self))
         root.putChild('users', Users(self))
