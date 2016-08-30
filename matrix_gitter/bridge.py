@@ -206,6 +206,19 @@ class Bridge(object):
                     user, matrix_room);
                 ''')
 
+            self.db.execute(
+                '''
+                CREATE TABLE virtual_user_rooms(
+                    matrix_username TEXT NOT NULL,
+                    matrix_room TEXT NOT NULL);
+                ''')
+            self.db.execute(
+                '''
+                CREATE UNIQUE INDEX virtualusersrooms_user_room_idx ON
+                        virtual_user_rooms(
+                    matrix_username, matrix_room);
+                ''')
+
         self.debug = config.get('DEBUG', False)
 
         self.secret_key = config['unique_secret_key']
@@ -476,7 +489,7 @@ class Bridge(object):
         return self.gitter.leave_room(user_obj, gitter_room)
         # TODO: assert no room
 
-    def virtualuser_exists(self, username):
+    def virtualuser_exists(self, matrix_user):
         """Indicate if a virtual Matrix user was already created.
         """
         cur = self.db.execute(
@@ -484,7 +497,7 @@ class Bridge(object):
             SELECT matrix_username FROM virtual_users
             WHERE matrix_username = ?;
             ''',
-            (username,))
+            (matrix_user,))
         try:
             next(cur)
         except StopIteration:
@@ -492,7 +505,7 @@ class Bridge(object):
         else:
             return True
 
-    def add_virtualuser(self, username):
+    def add_virtualuser(self, matrix_user):
         """Add a virtual Matrix user to the database.
         """
         self.db.execute(
@@ -500,7 +513,30 @@ class Bridge(object):
             INSERT OR IGNORE INTO virtual_users(matrix_username)
             VALUES(?);
             ''',
-            (username,))
+            (matrix_user,))
+
+    def add_virtualuser_on_room(self, matrix_user, matrix_room):
+        self.db.execute(
+            '''
+            INSERT OR IGNORE INTO virtual_user_rooms(
+                matrix_username, matrix_room)
+            VALUES(?, ?);
+            ''',
+            matrix_user, matrix_room)
+
+    def is_virtualuser_on_room(self, matrix_user, matrix_room):
+        cur = self.db.execute(
+            '''
+            SELECT matrix_username FROM virtual_user_rooms
+            WHERE matrix_username = ? AND matrix_room = ?;
+            ''',
+            (matrix_user, matrix_room))
+        try:
+            next(cur)
+        except StopIteration:
+            return False
+        else:
+            return True
 
     def gitter_auth_link(self, matrix_user):
         """Get the link a user should visit to authenticate.

@@ -515,13 +515,15 @@ class MatrixAPI(object):
                 {'type': 'm.login.application_service',
                  'username': 'gitter_%s' % username},
                 assert200=False)
+            d.addCallback(self._set_user_name, user, username)
             self.bridge.add_virtualuser('gitter_%s' % username)
         else:
             d = defer.succeed(None)
-        # FIXME: No need to invite & join everytime, store this in DB
-        d.addCallback(self._set_user_name, user, username)
-        d.addCallback(self._invite_user, room, user)
-        d.addCallback(self._join_user, room, user)
+        if not self.bridge.is_virtualuser_on_room('gitter_%s' % username,
+                                                  room):
+            d.addCallback(self._invite_user, room, user)
+            d.addCallback(self._join_user, room, user)
+            self.bridge.add_virtualuser_on_room('gitter_%s' % username, room)
         d.addCallback(self._post_message, room, user, msg)
         d.addErrback(Errback(log,
                              "Error posting message to Matrix room {room}",
