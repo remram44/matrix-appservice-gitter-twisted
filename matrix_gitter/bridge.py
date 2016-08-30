@@ -177,9 +177,21 @@ class Bridge(object):
                 ''')
             self.db.execute(
                 '''
+                CREATE INDEX users_githubuser_idx ON users(
+                    github_username);
+                ''')
+            self.db.execute(
+                '''
+                CREATE UNIQUE INDEX users_privateroom_idx ON users(
+                    matrix_private_room);
+                ''')
+
+            self.db.execute(
+                '''
                 CREATE TABLE virtual_users(
                     matrix_username TEXT NOT NULL PRIMARY KEY);
                 ''')
+
             self.db.execute(
                 '''
                 CREATE TABLE rooms(
@@ -187,6 +199,11 @@ class Bridge(object):
                     matrix_room TEXT NOT NULL,
                     gitter_room_name TEXT NOT NULL,
                     gitter_room_id TEXT NOT NULL);
+                ''')
+            self.db.execute(
+                '''
+                CREATE UNIQUE INDEX rooms_user_matrixroom_idx ON rooms(
+                    user, matrix_room);
                 ''')
 
         self.debug = config.get('DEBUG', False)
