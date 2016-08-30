@@ -506,12 +506,21 @@ class MatrixAPI(object):
         else:
             d = defer.succeed(None)
         # FIXME: No need to invite & join everytime, store this in DB
+        d.addCallback(self._set_user_name, user, username)
         d.addCallback(self._invite_user, room, user)
         d.addCallback(self._join_user, room, user)
         d.addCallback(self._post_message, room, user, msg)
         d.addErrback(Errback(log,
                              "Error posting message to Matrix room {room}",
                              room=room))
+
+    def _set_user_name(self, response, user, username):
+        return self.matrix_request(
+            'PUT',
+            '_matrix/client/r0/profile/%s/displayname',
+            {'displayname': "%s (Gitter)" % username},
+            user,
+            assert200=False)
 
     def _invite_user(self, response, room, user):
         return self.matrix_request(
