@@ -604,7 +604,7 @@ class MatrixAPI(object):
         previous_room = self.bridge.set_user_private_matrix_room(user, room)
 
         # If there was already a private room, leave it
-        if previous_room is not None:
+        if previous_room is not None and previous_room != room:
             log.info("Leaving previous private room {room}",
                      room=previous_room)
             d = self.matrix_request(
