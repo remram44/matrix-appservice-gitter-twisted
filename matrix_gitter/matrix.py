@@ -535,7 +535,8 @@ class MatrixAPI(object):
             '_matrix/client/r0/profile/%s/displayname',
             {'displayname': "%s (Gitter)" % username},
             user,
-            assert200=False)
+            assert200=False,
+            user_id=user)
 
     def _invite_user(self, response, room, user):
         return self.matrix_request(
