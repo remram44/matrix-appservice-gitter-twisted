@@ -522,7 +522,7 @@ class Bridge(object):
                 matrix_username, matrix_room)
             VALUES(?, ?);
             ''',
-            matrix_user, matrix_room)
+            (matrix_user, matrix_room))
 
     def is_virtualuser_on_room(self, matrix_user, matrix_room):
         cur = self.db.execute(
