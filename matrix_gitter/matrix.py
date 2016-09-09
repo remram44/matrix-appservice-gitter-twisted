@@ -94,8 +94,12 @@ class Transaction(BaseMatrixResource):
             log.info("    {type}", type=event['type'])
             log.info("    {content}", content=event['content'])
 
-            if (event['type'] == 'm.room.member' and
-                    event['content'].get('membership') == 'invite'):
+            if (self.api.is_virtualuser(user) or
+                    self.api.is_virtualuser(event.get('state_key'))):
+                pass
+            elif (event['type'] == 'm.room.member' and
+                    event['content'].get('membership') == 'invite' and
+                    event['state_key'] == self.api.bot_fullname):
                 # We've been invited to a room, join it
                 # FIXME: Remember rooms we've left from private_room_members
                 log.info("Joining room {room}", room=room)
@@ -128,8 +132,8 @@ class Transaction(BaseMatrixResource):
                 # We don't care about joins to linked rooms, they have to be
                 # virtual users
             elif (event['type'] == 'm.room.member' and
-                    event['content'].get('membership') != 'join'):
-                # FIXME: can this be triggered by other people getting invited?
+                    event['content'].get('membership') != 'join' and
+                    event['content'].get('membership') != 'invite'):
                 # Someone left a room
                 room_obj = self.api.get_room(room)
 
@@ -461,6 +465,16 @@ class MatrixAPI(object):
         site.displayTracebacks = debug
         site.logRequest = True
         reactor.listenTCP(port, site)
+
+    def is_virtualuser(self, user):
+        if user is None:
+            return False
+        user = user.split(':', 1)
+        if len(user) != 2:
+            return False
+        local, domain = user
+        return (local.startswith('@gitter_') and
+                domain == self.homeserver_domain)
 
     def matrix_request(self, method, uri, content, *args, **kwargs):
         """Matrix client->homeserver API request.
