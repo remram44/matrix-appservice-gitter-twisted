@@ -79,16 +79,17 @@ class Room(Protocol):
     def dataReceived(self, data):
         if self.destroyed:
             return
-        log.info("Data received on stream for user {user} room {room} "
-                 "({bytes} bytes):\n{data!r}",
-                 user=self.user.github_username, room=self.gitter_room_name,
-                 bytes=len(data), data=data)
         if '\n' in data:
             data = data.split('\n', 1)
             content, self.content = self.content + [data[0]], [data[1]]
             document = ''.join(content).strip()
             if not document:
                 return
+            log.info("Data received on stream for user {user} room {room}:\n"
+                     "{data!r}",
+                     user=self.user.github_username,
+                     room=self.gitter_room_name,
+                     data=document)
             try:
                 message = json.loads(document)
             except Exception:
