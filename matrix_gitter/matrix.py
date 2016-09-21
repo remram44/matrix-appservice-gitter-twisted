@@ -1,5 +1,7 @@
 from datetime import datetime
 import json
+import markdown2
+import re
 from twisted.internet import defer
 from twisted.internet import reactor
 from twisted.python.failure import Failure
@@ -33,6 +35,26 @@ HELP_MESSAGE = (
     "room and invite you to join it.\n"
     " - `logout`: throw away your Gitter credentials. Kick you out of all the "
     "rooms you are in.")
+
+
+_markdown_link_patterns = [
+    (re.compile(r'((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9'
+                r'\.\-]+(:[0-9]+)?|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+'
+                r')((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!'
+                r'\/\\\w]*))?)'),r'\1')]
+
+_markdown_obj = markdown2.Markdown(
+    extras=['code-friendly', 'fenced-code-blocks', 'footnotes',
+            'link-patterns', 'tables'],
+    link_patterns=_markdown_link_patterns)
+
+def markdown(msg):
+    msg = _markdown_obj.convert(msg)
+    if msg.startswith('<p>'):
+        msg = msg[3:]
+    if msg.endswith('</p>'):
+        msg = msg[:-4]
+    return msg
 
 
 def txid():
@@ -575,7 +597,9 @@ class MatrixAPI(object):
             'PUT',
             '_matrix/client/r0/rooms/%s/send/m.room.message/%s',
             {'msgtype': 'm.text',
-             'body': msg},
+             'body': msg,
+             'format': 'org.matrix.custom.html',
+             'formatted_body': markdown(msg)},
             room,
             txid(),
             user_id=user)

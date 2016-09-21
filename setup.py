@@ -12,7 +12,8 @@ req = [
     'Twisted~=16.3.0',
     'pyOpenSSL',
     'service-identity',
-    'certifi']
+    'certifi',
+    'markdown2']
 setup(name='matrix-gitter-twisted',
       version='0.1',
       packages=['matrix_gitter'],
