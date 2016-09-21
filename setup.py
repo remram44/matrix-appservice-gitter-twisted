@@ -30,6 +30,6 @@ setup(name='matrix-gitter-twisted',
       license='BSD',
       keywords=['matrix', 'twisted'],
       classifiers=[
-          'Development Status :: 1 - Planning',
+          'Development Status :: 4 - Beta',
           'License :: OSI Approved :: BSD License',
           'Programming Language :: Python :: 2.7'])
