@@ -1,7 +1,6 @@
 from datetime import datetime
 import json
-import markdown2
-import re
+import markdown as _markdown
 from twisted.internet import defer
 from twisted.internet import reactor
 from twisted.python.failure import Failure
@@ -37,19 +36,12 @@ HELP_MESSAGE = (
     "rooms you are in.")
 
 
-_markdown_link_patterns = [
-    (re.compile(r'((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9'
-                r'\.\-]+(:[0-9]+)?|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+'
-                r')((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!'
-                r'\/\\\w]*))?)'),r'\1')]
+_markdown_obj = _markdown.Markdown(extensions=['pymdownx.github'])
 
-_markdown_obj = markdown2.Markdown(
-    extras=['code-friendly', 'fenced-code-blocks', 'footnotes',
-            'link-patterns', 'tables'],
-    link_patterns=_markdown_link_patterns)
 
 def markdown(msg):
     msg = _markdown_obj.convert(msg)
+    _markdown_obj.reset()
     if msg.startswith('<p>'):
         msg = msg[3:]
     if msg.endswith('</p>'):

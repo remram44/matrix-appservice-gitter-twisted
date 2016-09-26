@@ -13,7 +13,8 @@ req = [
     'pyOpenSSL',
     'service-identity',
     'certifi',
-    'markdown2']
+    'markdown',
+    'pymdown-extensions']
 setup(name='matrix-gitter-twisted',
       version='0.1',
       packages=['matrix_gitter'],
