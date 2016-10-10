@@ -497,6 +497,7 @@ class MatrixAPI(object):
             uri = uri % tuple(urllib.quote(a) for a in args)
         if isinstance(uri, unicode):
             uri = uri.encode('ascii')
+        assert200 = kwargs.pop('assert200', True)
         getargs = {'access_token': self.token_as}
         getargs.update(kwargs)
         uri = '%s%s?%s' % (
@@ -511,7 +512,7 @@ class MatrixAPI(object):
             Headers({'content-type': ['application/json'],
                      'accept': ['application/json']}),
             JsonProducer(content) if content is not None else None)
-        if kwargs.pop('assert200', True):
+        if assert200:
             d.addCallback(assert_http_200)
         return d
 
