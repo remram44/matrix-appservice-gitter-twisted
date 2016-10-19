@@ -4,7 +4,6 @@ import sqlite3
 from twisted import logger
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, connectionDone
-from twisted.web.client import Agent
 
 from matrix_gitter.gitter import GitterAPI
 from matrix_gitter.matrix import MatrixAPI
@@ -12,8 +11,6 @@ from matrix_gitter.utils import Errback
 
 
 log = logger.Logger()
-
-agent = Agent(reactor)
 
 
 class User(object):

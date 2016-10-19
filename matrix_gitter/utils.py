@@ -1,11 +1,32 @@
 import json
 from StringIO import StringIO
 from twisted.web.iweb import IBodyProducer
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.internet.protocol import connectionDone, Protocol
+from twisted.web.client import Agent
+from twisted.web.http_headers import Headers
 import urllib
-import urlparse
 from zope.interface import implements
+
+
+agent = Agent(reactor)
+
+
+def request(method, uri, headers, bodyProducer=None):
+    d = agent.request(method, uri,
+                      Headers(dict((k, [v]) for k, v in headers.iteritems())),
+                      bodyProducer)
+
+    # http://stackoverflow.com/a/15142570/711380
+    timeoutCall = reactor.callLater(20, d.cancel)
+
+    def completed(passthrough):
+        if timeoutCall.active():
+            timeoutCall.cancel()
+        return passthrough
+    d.addBoth(completed)
+
+    return d
 
 
 def Errback(log, fmt, **kwargs):

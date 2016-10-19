@@ -1,17 +1,13 @@
 from twisted.internet import reactor
 from twisted import logger
-from twisted.web.client import Agent
-from twisted.web.http_headers import Headers
 from twisted.web.resource import NoResource, Resource
 from twisted.web.server import NOT_DONE_YET, Site
 import urllib
 
-from matrix_gitter.utils import FormProducer, read_json_response
+from matrix_gitter.utils import FormProducer, read_json_response, request
 
 
 log = logger.Logger()
-
-agent = Agent(reactor)
 
 
 HTML_TEMPLATE = '''\
@@ -106,11 +102,11 @@ class Callback(Resource):
             'code': code,
             'redirect_uri': '%scallback' % self.api.url,
             'grant_type': 'authorization_code'}
-        d = agent.request(
+        d = request(
             'POST',
             'https://gitter.im/login/oauth/token',
-            Headers({'content-type': ['application/x-www-form-urlencoded'],
-                     'accept': ['application/json']}),
+            {'content-type': 'application/x-www-form-urlencoded',
+             'accept': 'application/json'},
             FormProducer(postargs))
         d.addCallback(read_json_response)
         d.addCallback(self._authorized, user, request)

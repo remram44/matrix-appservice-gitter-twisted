@@ -4,20 +4,16 @@ import markdown as _markdown
 from twisted.internet import defer
 from twisted.internet import reactor
 from twisted.python.failure import Failure
-from twisted.web.client import Agent
-from twisted.web.http_headers import Headers
 from twisted import logger
 from twisted.web.resource import Resource, NoResource
 from twisted.web.server import NOT_DONE_YET, Site
 import urllib
 
 from matrix_gitter.utils import assert_http_200, Errback, JsonProducer, \
-    read_json_response
+    read_json_response, request
 
 
 log = logger.Logger()
-
-agent = Agent(reactor)
 
 
 HELP_MESSAGE = (
@@ -506,11 +502,11 @@ class MatrixAPI(object):
             urllib.urlencode(getargs))
         log.info("matrix_request {method} {uri} {content!r}",
                  method=method, uri=uri, content=content)
-        d = agent.request(
+        d = request(
             method,
             uri,
-            Headers({'content-type': ['application/json'],
-                     'accept': ['application/json']}),
+            {'content-type': 'application/json',
+             'accept': 'application/json'},
             JsonProducer(content) if content is not None else None)
         if assert200:
             d.addCallback(assert_http_200)

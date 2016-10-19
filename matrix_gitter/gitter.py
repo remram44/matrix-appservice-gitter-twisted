@@ -1,19 +1,14 @@
 import hashlib
 import hmac
 from twisted import logger
-from twisted.internet import reactor
-from twisted.web.client import Agent
-from twisted.web.http_headers import Headers
 import urllib
 
 from matrix_gitter.gitter_oauth import setup_gitter_oauth
 from matrix_gitter.utils import assert_http_200, Errback, JsonProducer, \
-    read_json_response
+    read_json_response, request
 
 
 log = logger.Logger()
-
-agent = Agent(reactor)
 
 
 class GitterAPI(object):
@@ -51,14 +46,14 @@ class GitterAPI(object):
             uri = uri % tuple(urllib.quote(a) for a in args)
         if isinstance(uri, unicode):
             uri = uri.encode('ascii')
-        headers = {'accept': ['application/json'],
-                   'authorization': ['Bearer %s' % access_token]}
+        headers = {'accept': 'application/json',
+                   'authorization': 'Bearer %s' % access_token}
         if content is not None:
-            headers['content-type'] = ['application/json']
-        return agent.request(
+            headers['content-type'] = 'application/json'
+        return request(
             method,
             'https://api.gitter.im/%s' % uri,
-            Headers(headers),
+            headers,
             JsonProducer(content) if content is not None else None)
 
     def gitter_stream(self, method, uri, *args, **kwargs):
@@ -72,12 +67,12 @@ class GitterAPI(object):
             uri = uri % tuple(urllib.quote(a) for a in args)
         if isinstance(uri, unicode):
             uri = uri.encode('ascii')
-        headers = {'accept': ['application/json'],
-                   'authorization': ['Bearer %s' % access_token]}
-        return agent.request(
+        headers = {'accept': 'application/json',
+                   'authorization': 'Bearer %s' % access_token}
+        return request(
             method,
             'https://stream.gitter.im/%s' % uri,
-            Headers(headers))
+            headers)
 
     def set_access_token(self, matrix_user, access_token):
         """Set the access token for a user who completed OAuth.
