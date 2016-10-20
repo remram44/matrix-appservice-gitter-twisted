@@ -528,70 +528,142 @@ class MatrixAPI(object):
     def forward_message(self, room, username, msg):
         """Called from the Bridge to send a forwarded message to a room.
 
-        Creates the user, invites him on the room, then speak the message.
+        Creates the user, invites him on the room, then speaks the message.
         """
-        user = '@gitter_%s:%s' % (username, self.homeserver_domain)
+        self.ForwardMessage(self, username, room, msg)
 
-        if not self.bridge.virtualuser_exists('gitter_%s' % username):
-            log.info("Creating user {user}", user=username)
-            d = self.matrix_request(
+    class ForwardMessage(object):
+        """Message forwarding state-machine.
+        """
+
+        #                                          +---------------+
+        #                                          |forward message|
+        #                                          +---------------+
+        #                                                  |  created=False
+        #                                                  |  joined=False
+        #                                                  v
+        #                                           +------------+
+        #                                        NO |user exists?|
+        #                   +------+<---------------+------------+
+        #          +------->|CREATE| created=True          |
+        #   created=False?  +------+                       | YES
+        #          ^            |                          v
+        #          |            v                NO +-------------+
+        #       +---------->+------+<---------------|user on room?|
+        #       |  |        |INVITE| joined=True    +-------------+
+        #       |  |--------+------+                       |
+        #       |  |    fail    |                          | YES
+        #       |  |            v                          |
+        #       |  |         +----+                        |
+        #       |  +---------|JOIN|                        |
+        #       |       fail +----+                        |
+        #       |               |                          |
+        #  joined=False?        v                          |
+        #       ^           +-------+ <--------------------+
+        #       +-----------+MESSAGE|
+        #              fail +-------+
+        def __init__(self, matrix, username, room, message):
+            self._created = False
+            self._joined = False
+
+            self.matrix = matrix
+            self.username = username
+            self.matrix_user = '@gitter_%s:%s' % (username,
+                                                  self.matrix.homeserver_domain)
+            self.room = room
+            self.message = message
+
+            if not self.matrix.bridge.virtualuser_exists(
+                            'gitter_%s' % username):
+                self.create_user()
+            else:
+                if self.matrix.bridge.is_virtualuser_on_room(
+                        'gitter_%s' % username,
+                        room):
+                    self.send_message()
+                else:
+                    self.invite_user()
+
+        def fail(self, err):
+            log.failure("Error posting message to Matrix room {room}", err,
+                        room=self.room)
+
+        def create_user(self, result=None):
+            self._created = True
+
+            log.info("Creating user {user}", user=self.username)
+            d = self.matrix.matrix_request(
                 'POST',
                 '_matrix/client/r0/register',
                 {'type': 'm.login.application_service',
-                 'username': 'gitter_%s' % username},
+                 'username': 'gitter_%s' % self.username},
                 assert200=False)
-            d.addCallback(self._set_user_name, user, username)
-            d.addCallback(lambda r: self.bridge.add_virtualuser(
-                'gitter_%s' % username))
-        else:
-            d = defer.succeed(None)
-        if not self.bridge.is_virtualuser_on_room('gitter_%s' % username,
-                                                  room):
-            d.addCallback(self._invite_user, room, user)
-            d.addCallback(self._join_user, room, user)
-            d.addCallback(lambda r: self.bridge.add_virtualuser_on_room(
-                'gitter_%s' % username, room))
-        d.addCallback(self._post_message, room, user, msg)
-        d.addErrback(Errback(log,
-                             "Error posting message to Matrix room {room}",
-                             room=room))
+            d.addCallbacks(self.set_user_name, self.fail)
 
-    def _set_user_name(self, response, user, username):
-        return self.matrix_request(
-            'PUT',
-            '_matrix/client/r0/profile/%s/displayname',
-            {'displayname': "%s (Gitter)" % username},
-            user,
-            assert200=False,
-            user_id=user)
+        def set_user_name(self, result=None):
+            d = self.matrix.matrix_request(
+                'PUT',
+                '_matrix/client/r0/profile/%s/displayname',
+                {'displayname': "%s (Gitter)" % self.username},
+                self.matrix_user,
+                assert200=False,
+                user_id=self.matrix_user)
+            d.addCallbacks(self.user_created, self.fail)
 
-    def _invite_user(self, response, room, user):
-        return self.matrix_request(
-            'POST',
-            '_matrix/client/r0/rooms/%s/invite',
-            {'user_id': user},
-            room,
-            assert200=False)
+        def user_created(self, result=None):
+            self.matrix.bridge.add_virtualuser('gitter_%s' % self.username)
+            self.invite_user()
 
-    def _join_user(self, response, room, user):
-        return self.matrix_request(
-            'POST',
-            '_matrix/client/r0/rooms/%s/join',
-            {},
-            room,
-            user_id=user)
+        def fail_join(self, err):
+            if not self._created:
+                self.create_user()
+            else:
+                self.fail(err)
 
-    def _post_message(self, response, room, user, msg):
-        return self.matrix_request(
-            'PUT',
-            '_matrix/client/r0/rooms/%s/send/m.room.message/%s',
-            {'msgtype': 'm.text',
-             'body': msg,
-             'format': 'org.matrix.custom.html',
-             'formatted_body': markdown(msg)},
-            room,
-            txid(),
-            user_id=user)
+        def invite_user(self, result=None):
+            self._joined = True
+
+            d = self.matrix.matrix_request(
+                'POST',
+                '_matrix/client/r0/rooms/%s/invite',
+                {'user_id': self.matrix_user},
+                self.room,
+                assert200=False)
+            d.addCallbacks(self.join_user, self.fail_join)
+
+        def join_user(self, result=None):
+            d = self.matrix.matrix_request(
+                'POST',
+                '_matrix/client/r0/rooms/%s/join',
+                {},
+                self.room,
+                user_id=self.matrix_user)
+            d.addCallbacks(self.user_joined, self.fail_join)
+
+        def user_joined(self, result=None):
+            self.matrix.bridge.add_virtualuser_on_room(
+                'gitter_%s' % self.username,
+                self.room)
+            self.send_message()
+
+        def fail_message(self, err):
+            if not self._joined:
+                self.invite_user()
+            else:
+                self.fail(err)
+
+        def send_message(self, result=None):
+            d = self.matrix.matrix_request(
+                'PUT',
+                '_matrix/client/r0/rooms/%s/send/m.room.message/%s',
+                {'msgtype': 'm.text',
+                 'body': self.message,
+                 'format': 'org.matrix.custom.html',
+                 'formatted_body': markdown(self.message)},
+                self.room,
+                txid(),
+                user_id=self.matrix_user)
+            d.addErrback(self.fail_message)
 
     def private_message(self, user_obj, msg, invite):
         """Send a message to a user on the appropriate private room.
