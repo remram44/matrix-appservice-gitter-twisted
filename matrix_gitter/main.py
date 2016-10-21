@@ -10,9 +10,9 @@ def main():
     observer = logger.FileLogObserver(sys.stderr,
                                       logger.formatEventAsClassicLogText)
     # Filter events by level
-    observer = logger.FilteringLogObserver(
-        observer,
-        [logger.LogLevelFilterPredicate(logger.LogLevel.info)])
+    predicate = logger.LogLevelFilterPredicate(logger.LogLevel.warn)
+    predicate.setLogLevelForNamespace('matrix_gitter', logger.LogLevel.info)
+    observer = logger.FilteringLogObserver(observer, [predicate])
     # Register as global observer
     logger.globalLogPublisher.addObserver(observer)
 
