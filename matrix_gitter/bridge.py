@@ -61,11 +61,13 @@ class Room(Protocol):
             'v1/rooms/%s/chatMessages',
             self.gitter_room_id,
             user=self.user)
-        d.addCallback(self._receive_stream)
-        d.addErrback(Errback(
-            log,
-            "Error starting Gitter stream for user {user} room {room}",
-            user=self.user.github_username, room=self.gitter_room_name))
+        d.addCallbacks(self._receive_stream, self.start_failed)
+
+    def start_failed(self, err):
+        log.failure("Error starting Gitter stream for user {user} room {room}",
+                    err,
+                    user=self.user.github_username, room=self.gitter_room_name)
+        reactor.callLater(30, self.start_stream)
 
     def _receive_stream(self, response):
         log.info("Stream started for user {user} room {room}",
