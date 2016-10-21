@@ -14,19 +14,20 @@ from zope.interface import implements
 agent = Agent(reactor)
 
 
-def request(method, uri, headers, bodyProducer=None):
+def request(method, uri, headers, bodyProducer=None, timeout=20):
     d = agent.request(method, uri,
                       Headers(dict((k, [v]) for k, v in headers.iteritems())),
                       bodyProducer)
 
-    # http://stackoverflow.com/a/15142570/711380
-    timeoutCall = reactor.callLater(20, d.cancel)
+    if timeout is not None:
+        # http://stackoverflow.com/a/15142570/711380
+        timeoutCall = reactor.callLater(timeout, d.cancel)
 
-    def completed(passthrough):
-        if timeoutCall.active():
-            timeoutCall.cancel()
-        return passthrough
-    d.addBoth(completed)
+        def completed(passthrough):
+            if timeoutCall.active():
+                timeoutCall.cancel()
+            return passthrough
+        d.addBoth(completed)
 
     return d
 

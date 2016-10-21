@@ -76,7 +76,8 @@ class GitterAPI(object):
         return request(
             method,
             'https://stream.gitter.im/%s' % uri,
-            headers)
+            headers,
+            timeout=None)
 
     def set_access_token(self, matrix_user, access_token):
         """Set the access token for a user who completed OAuth.
