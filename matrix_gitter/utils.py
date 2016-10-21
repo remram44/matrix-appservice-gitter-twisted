@@ -14,7 +14,7 @@ from zope.interface import implements
 agent = Agent(reactor)
 
 
-def request(method, uri, headers, bodyProducer=None, timeout=20):
+def request(method, uri, headers, bodyProducer=None, timeout=40):
     d = agent.request(method, uri,
                       Headers(dict((k, [v]) for k, v in headers.iteritems())),
                       bodyProducer)
