@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import sqlite3
 from twisted import logger
 from twisted.internet import reactor
@@ -50,6 +51,7 @@ class Room(Protocol):
 
         self.stream_response = None
         self.destroyed = False
+        self.delay = 0
 
         if delay is not None:
             reactor.callLater(delay, self.start_stream)
@@ -67,14 +69,19 @@ class Room(Protocol):
         d.addCallbacks(self._receive_stream, self.start_failed)
 
     def start_failed(self, err):
-        log.failure("Error starting Gitter stream for user {user} room {room}",
+        self.delay = min(10 * 60, max(self.delay, 30) * 1.5)
+        delay = self.delay * (1.0 + 0.5 * random.random())
+        log.failure("Error starting Gitter stream for user {user} room "
+                    "{room}, retry in {delay}s",
                     err,
-                    user=self.user.github_username, room=self.gitter_room_name)
-        reactor.callLater(30, self.start_stream)
+                    user=self.user.github_username, room=self.gitter_room_name,
+                    delay=delay)
+        reactor.callLater(delay, self.start_stream)
 
     def _receive_stream(self, response):
         log.info("Stream started for user {user} room {room}",
                  user=self.user.github_username, room=self.gitter_room_name)
+        self.delay = 0
         response.deliverBody(self)
         self.stream_response = response
 
