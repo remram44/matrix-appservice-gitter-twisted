@@ -1,14 +1,12 @@
 import json
 import os
-import random
 import sqlite3
 from twisted import logger
-from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, connectionDone
 
 from matrix_gitter.gitter import GitterAPI
 from matrix_gitter.matrix import MatrixAPI
-from matrix_gitter.utils import Errback
+from matrix_gitter.utils import Errback, RateLimiter
 
 
 log = logger.Logger()
@@ -34,6 +32,9 @@ class User(object):
                     row['gitter_access_token'])
 
 
+gitter_stream_limit = RateLimiter("gitter_stream")
+
+
 class Room(Protocol):
     """A room linked between Gitter and Matrix.
 
@@ -42,7 +43,7 @@ class Room(Protocol):
     """
     # FIXME: This class has too much Gitter logic that should be in gitter.py
     def __init__(self, bridge, user, matrix_room,
-                 gitter_room_name, gitter_room_id, delay=None):
+                 gitter_room_name, gitter_room_id):
         self.bridge = bridge
         self.user = user
         self.matrix_room = matrix_room
@@ -51,14 +52,13 @@ class Room(Protocol):
 
         self.stream_response = None
         self.destroyed = False
-        self.delay = 0
 
-        if delay is not None:
-            reactor.callLater(delay, self.start_stream)
-        else:
-            self.start_stream()
+        gitter_stream_limit.schedule(self.start_stream)
 
     def start_stream(self):
+        if self.destroyed:
+            return
+
         self.content = []
         # Start stream
         d = self.bridge.gitter.gitter_stream(
@@ -69,19 +69,15 @@ class Room(Protocol):
         d.addCallbacks(self._receive_stream, self.start_failed)
 
     def start_failed(self, err):
-        self.delay = min(10 * 60, max(self.delay, 30) * 1.5)
-        delay = self.delay * (1.0 + 0.5 * random.random())
-        log.failure("Error starting Gitter stream for user {user} room "
-                    "{room}, retry in {delay}s",
-                    err,
-                    user=self.user.github_username, room=self.gitter_room_name,
-                    delay=delay)
-        reactor.callLater(delay, self.start_stream)
+        log.failure("Error starting Gitter stream for user {user} room {room}",
+                    user=self.user.github_username, room=self.gitter_room_name)
+        gitter_stream_limit.fail()
+        gitter_stream_limit.schedule(self.start_stream)
 
     def _receive_stream(self, response):
         log.info("Stream started for user {user} room {room}",
                  user=self.user.github_username, room=self.gitter_room_name)
-        self.delay = 0
+        gitter_stream_limit.success()
         response.deliverBody(self)
         self.stream_response = response
 
@@ -125,7 +121,7 @@ class Room(Protocol):
                  user=self.user.github_username, room=self.gitter_room_name)
         self.stream_response = None
         if not self.destroyed:
-            reactor.callLater(30, self.start_stream)
+            gitter_stream_limit.schedule(self.start_stream)
 
     def to_gitter(self, msg):
         """Forward a message to Gitter.
@@ -272,15 +268,13 @@ class Bridge(object):
             INNER JOIN users u ON r.user = u.matrix_username;
             ''')
         log.info("Initializing rooms...")
-        delay = 0
         for row in cur:
             user_obj = User.from_row(row)
             matrix_room = row['matrix_room']
             gitter_room_name = row['gitter_room_name']
             gitter_room_id = row['gitter_room_id']
             room = Room(self, user_obj, matrix_room,
-                        gitter_room_name, gitter_room_id, delay=delay)
-            delay += 5  # Limit to one connection every 5s
+                        gitter_room_name, gitter_room_id)
             self.rooms_matrix[matrix_room] = room
             self.rooms_gitter_name.setdefault(
                 user_obj.matrix_username, {})[
