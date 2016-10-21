@@ -41,7 +41,7 @@ class Room(Protocol):
     """
     # FIXME: This class has too much Gitter logic that should be in gitter.py
     def __init__(self, bridge, user, matrix_room,
-                 gitter_room_name, gitter_room_id):
+                 gitter_room_name, gitter_room_id, delay=None):
         self.bridge = bridge
         self.user = user
         self.matrix_room = matrix_room
@@ -51,7 +51,10 @@ class Room(Protocol):
         self.stream_response = None
         self.destroyed = False
 
-        self.start_stream()
+        if delay is not None:
+            reactor.callLater(delay, self.start_stream)
+        else:
+            self.start_stream()
 
     def start_stream(self):
         self.content = []
@@ -262,13 +265,15 @@ class Bridge(object):
             INNER JOIN users u ON r.user = u.matrix_username;
             ''')
         log.info("Initializing rooms...")
+        delay = 0
         for row in cur:
             user_obj = User.from_row(row)
             matrix_room = row['matrix_room']
             gitter_room_name = row['gitter_room_name']
             gitter_room_id = row['gitter_room_id']
             room = Room(self, user_obj, matrix_room,
-                        gitter_room_name, gitter_room_id)
+                        gitter_room_name, gitter_room_id, delay=delay)
+            delay += 5  # Limit to one connection every 5s
             self.rooms_matrix[matrix_room] = room
             self.rooms_gitter_name.setdefault(
                 user_obj.matrix_username, {})[
