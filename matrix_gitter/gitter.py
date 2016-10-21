@@ -50,6 +50,8 @@ class GitterAPI(object):
                    'authorization': 'Bearer %s' % access_token}
         if content is not None:
             headers['content-type'] = 'application/json'
+        log.debug("gitter_request {method} {uri} {content!r}",
+                  method=method, uri=uri, content=content)
         return request(
             method,
             'https://api.gitter.im/%s' % uri,
@@ -69,6 +71,8 @@ class GitterAPI(object):
             uri = uri.encode('ascii')
         headers = {'accept': 'application/json',
                    'authorization': 'Bearer %s' % access_token}
+        log.debug("gitter_stream {method} {uri} {content!r}",
+                  method=method, uri=uri)
         return request(
             method,
             'https://stream.gitter.im/%s' % uri,

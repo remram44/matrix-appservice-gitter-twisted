@@ -82,11 +82,11 @@ class Room(Protocol):
             document = ''.join(content).strip()
             if not document:
                 return
-            log.info("Data received on stream for user {user} room {room}:\n"
-                     "{data!r}",
-                     user=self.user.github_username,
-                     room=self.gitter_room_name,
-                     data=document)
+            log.debug("Data received on stream for user {user} room {room}:\n"
+                      "{data!r}",
+                      user=self.user.github_username,
+                      room=self.gitter_room_name,
+                      data=document)
             try:
                 message = json.loads(document)
             except Exception:

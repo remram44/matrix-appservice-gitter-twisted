@@ -500,8 +500,8 @@ class MatrixAPI(object):
             self.homeserver_url,
             uri,
             urllib.urlencode(getargs))
-        log.info("matrix_request {method} {uri} {content!r}",
-                 method=method, uri=uri, content=content)
+        log.debug("matrix_request {method} {uri} {content!r}",
+                  method=method, uri=uri, content=content)
         d = request(
             method,
             uri,

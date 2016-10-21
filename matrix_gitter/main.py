@@ -7,8 +7,14 @@ from twisted import logger
 
 def main():
     # Log to stderr
-    logger.globalLogPublisher.addObserver(
-        logger.FileLogObserver(sys.stderr, logger.formatEventAsClassicLogText))
+    observer = logger.FileLogObserver(sys.stderr,
+                                      logger.formatEventAsClassicLogText)
+    # Filter events by level
+    observer = logger.FilteringLogObserver(
+        observer,
+        [logger.LogLevelFilterPredicate(logger.LogLevel.info)])
+    # Register as global observer
+    logger.globalLogPublisher.addObserver(observer)
 
     if (platform.system().lower() == 'darwin' and
             not os.environ.get('SSL_CERT_FILE')):
