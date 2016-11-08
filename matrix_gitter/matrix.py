@@ -32,7 +32,8 @@ HELP_MESSAGE = (
     "rooms you are in.")
 
 
-_markdown_obj = _markdown.Markdown(extensions=['pymdownx.github'])
+_markdown_obj = _markdown.Markdown(extensions=['pymdownx.github',
+                                               'pymdownx.githubemoji'])
 
 
 def markdown(msg):
