@@ -184,6 +184,7 @@ class Transaction(BaseMatrixResource):
                     # If it's a linked room: forward
                     if room_obj is not None:
                         if user == room_obj.user.matrix_username:
+                            log.info("Forwarding to Gitter")
                             room_obj.to_gitter(msg)
                     # If it's a message on a private room, handle a command
                     else:
