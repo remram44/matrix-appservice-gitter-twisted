@@ -282,7 +282,7 @@ class Transaction(BaseMatrixResource):
                               'POST',
                               '_matrix/client/r0/rooms/%s/forget',
                               {},
-                user_obj.matrix_private_room))
+                              user_obj.matrix_private_room))
             self.api.forget_private_room(user_obj.matrix_private_room)
             return
 
@@ -570,8 +570,8 @@ class MatrixAPI(object):
 
             self.matrix = matrix
             self.username = username
-            self.matrix_user = '@gitter_%s:%s' % (username,
-                                                  self.matrix.homeserver_domain)
+            self.matrix_user = '@gitter_%s:%s' % (
+                username, self.matrix.homeserver_domain)
             self.room = room
             self.message = message
 

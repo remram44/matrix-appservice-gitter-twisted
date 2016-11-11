@@ -110,7 +110,7 @@ class Room(Protocol):
                 try:
                     username = message['fromUser']['username']
                     if username != self.user.github_username:
-                        self.to_matrix(username,message['text'])
+                        self.to_matrix(username, message['text'])
                 except Exception:
                     log.failure("Exception handling Gitter message")
         else:
@@ -244,7 +244,7 @@ class Bridge(object):
             config['matrix_botname'],
             config['matrix_appservice_token'],
             config['matrix_homeserver_token'],
-            debug = self.debug)
+            debug=self.debug)
 
         gitter_login_url = config['gitter_login_url']
         if gitter_login_url[-1] != '/':
@@ -470,7 +470,7 @@ class Bridge(object):
                 SELECT matrix_room, gitter_room_id FROM rooms
                 WHERE user = ?;
                 ''',
-            (user_obj.matrix_username,))))
+                (user_obj.matrix_username,))))
 
         return [(gitter_id, gitter_name, user_rooms.get(gitter_id))
                 for gitter_id, gitter_name in rooms]

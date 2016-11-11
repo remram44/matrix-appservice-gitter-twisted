@@ -17,7 +17,8 @@ class GitterAPI(object):
     This communicates with Gitter using their API, authenticating via OAuth2 as
     specific users.
     """
-    def __init__(self, bridge, port, url, oauth_key, oauth_secret, debug=False):
+    def __init__(self, bridge, port, url, oauth_key, oauth_secret,
+                 debug=False):
         self.bridge = bridge
 
         self.oauth_key = oauth_key
@@ -106,7 +107,7 @@ class GitterAPI(object):
         """List the Gitter rooms a user is in.
         """
         d = self.gitter_request('GET', 'v1/rooms', None,
-                                   user=user_obj)
+                                user=user_obj)
         d.addCallback(assert_http_200)
         d.addCallback(read_json_response)
         d.addCallback(self._read_gitter_rooms)
