@@ -10,7 +10,7 @@ from twisted.web.server import NOT_DONE_YET, Site
 import urllib
 
 from matrix_gitter.utils import assert_http_200, Errback, JsonProducer, \
-    read_json_response, request
+    read_json_response, http_request
 
 
 log = logger.Logger()
@@ -504,7 +504,7 @@ class MatrixAPI(object):
             urllib.urlencode(getargs))
         log.debug("matrix_request {method} {uri} {content!r}",
                   method=method, uri=uri, content=content)
-        d = request(
+        d = http_request(
             method,
             uri,
             {'content-type': 'application/json',

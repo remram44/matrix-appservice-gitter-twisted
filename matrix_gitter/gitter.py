@@ -5,7 +5,7 @@ import urllib
 
 from matrix_gitter.gitter_oauth import setup_gitter_oauth
 from matrix_gitter.utils import assert_http_200, Errback, JsonProducer, \
-    read_json_response, request
+    read_json_response, http_request
 
 
 log = logger.Logger()
@@ -53,7 +53,7 @@ class GitterAPI(object):
             headers['content-type'] = 'application/json'
         log.debug("gitter_request {method} {uri} {content!r}",
                   method=method, uri=uri, content=content)
-        return request(
+        return http_request(
             method,
             'https://api.gitter.im/%s' % uri,
             headers,
@@ -74,7 +74,7 @@ class GitterAPI(object):
                    'authorization': 'Bearer %s' % access_token}
         log.debug("gitter_stream {method} {uri} {content!r}",
                   method=method, uri=uri)
-        return request(
+        return http_request(
             method,
             'https://stream.gitter.im/%s' % uri,
             headers,

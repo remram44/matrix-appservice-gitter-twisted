@@ -4,7 +4,7 @@ from twisted.web.resource import NoResource, Resource
 from twisted.web.server import NOT_DONE_YET, Site
 import urllib
 
-from matrix_gitter.utils import FormProducer, read_json_response, request
+from matrix_gitter.utils import FormProducer, read_json_response, http_request
 
 
 log = logger.Logger()
@@ -102,7 +102,7 @@ class Callback(Resource):
             'code': code,
             'redirect_uri': '%scallback' % self.api.url,
             'grant_type': 'authorization_code'}
-        d = request(
+        d = http_request(
             'POST',
             'https://gitter.im/login/oauth/token',
             {'content-type': 'application/x-www-form-urlencoded',
