@@ -346,6 +346,15 @@ class Transaction(BaseMatrixResource):
             matrix_room)
         # FIXME: Should we only start forwarding when the user joins?
 
+        def errback_func(err):
+            log.failure("Couldn't invite user to new room", err)
+
+            room_obj = self.api.get_room(matrix_room)
+            if room_obj is not None:
+                room_obj.destroy()
+
+        d.addErrback(errback_func)
+
     def private_room_members(self, (response, content), room):
         """Get list of members on what should be a private room.
 
