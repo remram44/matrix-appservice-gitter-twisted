@@ -1,7 +1,5 @@
 from datetime import datetime
 import json
-import markdown as _markdown
-import re
 from twisted.internet import reactor
 from twisted.python.failure import Failure
 from twisted import logger
@@ -9,6 +7,7 @@ from twisted.web.resource import Resource, NoResource
 from twisted.web.server import NOT_DONE_YET, Site
 import urllib
 
+from matrix_gitter.markup import gitter_to_matrix
 from matrix_gitter.utils import assert_http_200, Errback, JsonProducer, \
     read_json_response, http_request
 
@@ -30,43 +29,6 @@ HELP_MESSAGE = (
     "room and invite you to join it.\n"
     " - `logout`: throw away your Gitter credentials. Kick you out of all the "
     "rooms you are in.")
-
-
-_markdown_obj = _markdown.Markdown(extensions=['pymdownx.github',
-                                               'pymdownx.githubemoji'])
-
-_image_re = re.compile(r'<img(?:\s+[a-zA-Z_-]+="[^"]*")+\s*/?>')
-_image_attr_re = re.compile(r'([a-zA-Z_-]+)="([^"]*)"')
-
-
-def markdown(msg):
-    msg = _markdown_obj.convert(msg)
-    _markdown_obj.reset()
-    if msg.startswith('<p>'):
-        msg = msg[3:]
-    if msg.endswith('</p>'):
-        msg = msg[:-4]
-
-    # Go over the generated HTML (with a regex :sob:) and replace inline images
-    # with links (Riot doesn't allow inline images, only attachments)
-    def replace_img(m_img):
-        attrs = dict((m_attr.group(1), m_attr.group(2))
-                     for m_attr in _image_attr_re.finditer(m_img.group(0)))
-        title = ''
-        if 'title' in attrs:
-            title = ' title="%s"' % attrs['title']
-        alt = attrs.get('alt', '').strip()
-        if alt:
-            alt = alt.replace('\\"', '"')
-            alt = alt.replace('<', '&lt;').replace('>', '&gt;')
-            alt = ' (alt: %s)' % alt
-        return '<a href="{src}"{title}><i>image{alt}</i></a>'.format(
-            src=attrs.get('src', ''),
-            title=title, alt=alt)
-
-    msg = _image_re.sub(replace_img, msg)
-
-    return msg
 
 
 def txid():
@@ -693,7 +655,7 @@ class MatrixAPI(object):
                 {'msgtype': 'm.text',
                  'body': self.message,
                  'format': 'org.matrix.custom.html',
-                 'formatted_body': markdown(self.message)},
+                 'formatted_body': gitter_to_matrix(self.message)},
                 self.room,
                 txid(),
                 user_id=self.matrix_user)

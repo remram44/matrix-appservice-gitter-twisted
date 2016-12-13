@@ -5,6 +5,7 @@ from twisted import logger
 from twisted.internet.protocol import Protocol, connectionDone
 
 from matrix_gitter.gitter import GitterAPI
+from matrix_gitter.markup import matrix_to_gitter
 from matrix_gitter.matrix import MatrixAPI
 from matrix_gitter.utils import Errback, RateLimiter
 
@@ -129,7 +130,7 @@ class Room(Protocol):
         d = self.bridge.gitter.gitter_request(
             'POST',
             'v1/rooms/%s/chatMessages',
-            {'text': msg},
+            {'text': matrix_to_gitter(msg)},
             self.gitter_room_id,
             user=self.user)
         d.addErrback(Errback(log,
