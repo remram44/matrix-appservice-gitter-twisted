@@ -1,7 +1,6 @@
 from datetime import datetime
 import json
 import markdown as _markdown
-from twisted.internet import defer
 from twisted.internet import reactor
 from twisted.python.failure import Failure
 from twisted import logger
