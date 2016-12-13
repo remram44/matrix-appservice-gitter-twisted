@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 import markdown as _markdown
+import re
 from twisted.internet import reactor
 from twisted.python.failure import Failure
 from twisted import logger
@@ -34,6 +35,9 @@ HELP_MESSAGE = (
 _markdown_obj = _markdown.Markdown(extensions=['pymdownx.github',
                                                'pymdownx.githubemoji'])
 
+_image_re = re.compile(r'<img(?:\s+[a-zA-Z_-]+="[^"]*")+\s*/?>')
+_image_attr_re = re.compile(r'([a-zA-Z_-]+)="([^"]*)"')
+
 
 def markdown(msg):
     msg = _markdown_obj.convert(msg)
@@ -42,6 +46,26 @@ def markdown(msg):
         msg = msg[3:]
     if msg.endswith('</p>'):
         msg = msg[:-4]
+
+    # Go over the generated HTML (with a regex :sob:) and replace inline images
+    # with links (Riot doesn't allow inline images, only attachments)
+    def replace_img(m_img):
+        attrs = dict((m_attr.group(1), m_attr.group(2))
+                     for m_attr in _image_attr_re.finditer(m_img.group(0)))
+        title = ''
+        if 'title' in attrs:
+            title = ' title="%s"' % attrs['title']
+        alt = attrs.get('alt', '').strip()
+        if alt:
+            alt = alt.replace('\\"', '"')
+            alt = alt.replace('<', '&lt;').replace('>', '&gt;')
+            alt = ' (alt: %s)' % alt
+        return '<a href="{src}"{title}><i>image{alt}</i></a>'.format(
+            src=attrs.get('src', ''),
+            title=title, alt=alt)
+
+    msg = _image_re.sub(replace_img, msg)
+
     return msg
 
 
