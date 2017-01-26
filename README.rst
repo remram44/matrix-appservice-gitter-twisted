@@ -13,7 +13,7 @@ Contrary to other bridges, this doesn't link a public Matrix room with a Gitter 
 User experience
 ---------------
 
-Interaction happens through a bot. Just start chatting with ``@gitter:gitter.remram.fr``, and it will give you a link to log in to your Gitter account. Then the bot will invite you to the Gitter rooms you are already in. Those are private rooms, that do NOT have an alias like ``#gitterHQ/gitter``.
+Interaction happens through a bot. Just start chatting with ``@gitter:example.com``, and it will give you a link to log in to your Gitter account. Then the bot will invite you to the Gitter rooms you are already in. Those are private rooms, that do NOT have an alias like ``#gitterHQ/gitter``.
 
 The user can join or leave Gitter rooms by sending commands to the bot.
 
@@ -26,7 +26,7 @@ Deployment guide
 ----------------
 
 - Install and setup a homeserver
-- Sign up for a Gitter application on https://developer.gitter.im/apps; your URL should be your server hostname (``gitter_login_url`` in settings) with path ``/callback``, example ``https://gitter.remram.fr/callback``.
+- Sign up for a Gitter application on https://developer.gitter.im/apps; your URL should be your server hostname (``gitter_login_url`` in settings) with path ``/callback``, example ``https://example.com/callback``.
 - Write a registration file for this application service, based on this:
 
   .. code-block:: yaml
