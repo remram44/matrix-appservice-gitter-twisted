@@ -1,6 +1,8 @@
 ..  image:: https://remram44.github.io/matrix-appservice-gitter-twisted/img/matrix-badge.svg
     :target: https://vector.im/beta/#/room/#gitter-twisted:matrix.org
 
+**Status:** *development stopped since I have no server to run Matrix on. Unfortunately in its current state, Synapse's disk and memory usage exceed what my machine can take.*
+
 Matrix-Gitter bridge using Twisted
 ==================================
 
